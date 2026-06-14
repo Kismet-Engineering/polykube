@@ -35,6 +35,8 @@ if git grep -n -E '[[:blank:]]$' -- '*.md' '*.yml' '*.yaml' '*.sh'; then
   exit 1
 fi
 
-bash -n scripts/validate-repo.sh
+while IFS= read -r script_path; do
+  bash -n "${script_path}"
+done < <(git ls-files '*.sh')
 
 printf 'repository validation passed\n'

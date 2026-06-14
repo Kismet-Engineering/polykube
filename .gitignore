@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 tmp/
+examples/local-multicluster/state/
 dist/
 build/
 bin/

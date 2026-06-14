@@ -1,0 +1,39 @@
+[tools]
+colima = "0.9.1"
+kubectl = "1.35.0"
+
+[tasks."local:cluster:create"]
+description = "Create local k0s clusters for the Polykube demo"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--workers <count>" help="Extra workers per cluster" default="0"
+flag "--image <image>" help="k0s OCI image" default="docker.io/k0sproject/k0s:v1.35.2-k0s.0"
+flag "--recreate <bool>" help="Delete and recreate clusters if they already exist" default="false"
+'''
+run = "bash ./examples/local-multicluster/scripts/cluster_create.sh"
+
+[tasks."local:cluster:recreate"]
+description = "Recreate local k0s clusters for the Polykube demo"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--workers <count>" help="Extra workers per cluster" default="0"
+flag "--image <image>" help="k0s OCI image" default="docker.io/k0sproject/k0s:v1.35.2-k0s.0"
+flag "--recreate <bool>" help="Delete and recreate clusters if they already exist" default="true"
+'''
+run = "bash ./examples/local-multicluster/scripts/cluster_create.sh"
+
+[tasks."local:cluster:delete"]
+description = "Delete local k0s clusters for the Polykube demo"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--all" help="Delete all local Polykube k0s clusters" default="false"
+'''
+run = "bash ./examples/local-multicluster/scripts/cluster_delete.sh"
+
+[tasks."local:cluster:status"]
+description = "Show local k0s cluster status for the Polykube demo"
+run = "bash ./examples/local-multicluster/scripts/cluster_status.sh"
+
+[tasks."validate:repo"]
+description = "Run repository validation checks"
+run = "bash ./scripts/validate-repo.sh"
