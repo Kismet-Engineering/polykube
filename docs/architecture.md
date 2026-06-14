@@ -24,3 +24,5 @@ Infrastructure bootstrap tools should produce deterministic artifacts that can b
 Each participating cluster runs local reconciliation with only the credentials needed for that cluster. Multicluster rollout state is aggregated from per-cluster target status rather than a central process holding all cluster credentials.
 
 For v0, per-cluster rollout state lives under `Workload.status.targets[]`. A separate deployment target resource can be introduced later if implementation evidence shows the status array is insufficient.
+
+Polykube does not aim to be a progressive rollout engine. It should interoperate with dedicated rollout controllers for canaries, blue/green promotion, approvals, and traffic-shift gates while retaining responsibility for multicluster placement and runtime wiring.

@@ -20,6 +20,8 @@ Polykube v0 will start with five CRDs:
 
 Per-cluster deployment target state will be represented under `Workload.status.targets[]` in v0 instead of as a separate `DeploymentTarget` CRD.
 
+Progressive rollout mechanics are not part of the core v0 API. Polykube reconciles placement and runtime wiring for the desired workload state; canaries, blue/green promotion, traffic-shift gates, approval workflows, and rich rollout history should be handled by dedicated rollout systems or future integrations.
+
 ## Resource Model
 
 ### ClusterMember
@@ -81,6 +83,7 @@ Spec fields:
 - `env`: literal environment variables.
 - `envFrom`: Kubernetes-style config and secret references.
 - `targetPolicy`: member selection, explicit member list, or placement strategy.
+- `rolloutRef`: optional reference to an external rollout controller or strategy resource.
 - `replicas`: per-member replica count for v0.
 - `serviceAccountName`: optional service account override.
 
@@ -158,6 +161,7 @@ Controllers should prefer condition updates and events over hidden internal stat
 - `ServiceEndpoint` owns routing policy resources where Polykube emits them.
 - `DatastoreBinding` is advisory in v0 unless an example integration explicitly reconciles it.
 - Controllers must not require credentials for remote member clusters. Each cluster reconciles its local slice of desired state.
+- Progressive delivery systems may own the rollout strategy for generated or referenced runtime workloads. In that case, Polykube should avoid fighting those controllers and should report observed target health rather than duplicating their rollout state machines.
 
 ## Rejected Alternatives
 
@@ -169,6 +173,10 @@ Rejected for now. A separate child resource may be useful later, but v0 can repr
 
 Rejected for alpha. A central queue recreates hosted control-plane assumptions and requires coordination outside Kubernetes. The v0 model should reconcile from Kubernetes desired state.
 
+### Built-In Progressive Rollout Engine
+
+Rejected for v0. Canary analysis, blue/green promotion, approvals, and deployment history are mature concerns with dedicated Kubernetes-native tools. Polykube should interoperate with those systems instead of becoming a second rollout engine.
+
 ### Provider-Specific Top-Level CRDs
 
 Rejected for v0. Provider-specific bootstrap belongs in examples or infrastructure modules. The operator API should stay provider-neutral.
@@ -177,4 +185,5 @@ Rejected for v0. Provider-specific bootstrap belongs in examples or infrastructu
 
 - The first operator implementation can focus on `ClusterMember`, `Federation`, and `Workload` before routing and datastore integrations are complete.
 - `DeploymentTarget` can be introduced later if status arrays become insufficient.
+- Rollout integration can start as references and ownership boundaries before any deep controller coupling is added.
 - CRD YAML and generated Go types should use `polykube.dev` API groups from the first implementation pass.
