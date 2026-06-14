@@ -1,6 +1,8 @@
 [tools]
 colima = "0.9.1"
 kubectl = "1.35.0"
+helm = "3.18.6"
+"aqua:cilium/cilium-cli" = "v0.18.8"
 
 [tasks."local:cluster:create"]
 description = "Create local k0s clusters for the Polykube demo"
@@ -33,6 +35,59 @@ run = "bash ./examples/local-multicluster/scripts/cluster_delete.sh"
 [tasks."local:cluster:status"]
 description = "Show local k0s cluster status for the Polykube demo"
 run = "bash ./examples/local-multicluster/scripts/cluster_status.sh"
+
+[tasks."local:cilium:preflight"]
+description = "Check local Cilium prerequisites"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_preflight.sh"
+
+[tasks."local:cilium:install"]
+description = "Install Cilium on local k0s clusters"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--version <version>" help="Cilium version" default="1.18.2"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_install.sh"
+
+[tasks."local:cilium:clustermesh:enable"]
+description = "Enable Cilium ClusterMesh components"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--service-type <type>" help="ClusterMesh service type" default="NodePort"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_clustermesh_enable.sh"
+
+[tasks."local:cilium:clustermesh:connect"]
+description = "Connect local Cilium ClusterMesh peers"
+usage = '''
+flag "--source <cluster>" help="Source cluster name" default="alpha"
+flag "--destination <cluster>" help="Destination cluster name" default="beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_clustermesh_connect.sh"
+
+[tasks."local:cilium:verify"]
+description = "Verify local Cilium and ClusterMesh status"
+usage = '''
+flag "--source <cluster>" help="Source cluster name" default="alpha"
+flag "--destination <cluster>" help="Destination cluster name" default="beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_verify.sh"
+
+[tasks."local:cilium:status"]
+description = "Show Cilium and ClusterMesh status"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_status.sh"
+
+[tasks."local:cilium:reset"]
+description = "Remove Cilium resources from local clusters"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_reset.sh"
 
 [tasks."validate:repo"]
 description = "Run repository validation checks"
