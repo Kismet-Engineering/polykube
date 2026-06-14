@@ -16,6 +16,7 @@
 ## Alpha 2: Operator Core
 
 - Define CRD model v0.
+- Track the CRD decision in `docs/decisions/0003-crd-model-v0.md`.
 - Port runtime reconciliation into Kubernetes controllers.
 - Report per-cluster rollout status through resource status conditions.
 
