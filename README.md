@@ -28,6 +28,8 @@ Private alpha scaffold. No production guarantees yet.
 - Polykube is not a replacement for Kubernetes, CNI, GitOps, or cloud infrastructure tooling.
 - Polykube will not hide hard operational tradeoffs behind vague automation.
 
+See `docs/decisions/0002-public-alpha-scope.md` for the first public alpha boundary and extraction rules.
+
 ## Initial Layout
 
 - `operator/`: Kubernetes operator and CRD implementation.

@@ -5,6 +5,7 @@
 - Create private repository scaffold.
 - Establish license, project structure, and GitHub issue workflow.
 - Define public scope, non-goals, and sanitization rules.
+- Track the scope decision in `docs/decisions/0002-public-alpha-scope.md`.
 
 ## Alpha 1: Local Multicluster Demo
 
