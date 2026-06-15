@@ -39,4 +39,19 @@ while IFS= read -r script_path; do
   bash -n "${script_path}"
 done < <(git ls-files '*.sh')
 
+if [[ -f operator/go.mod ]]; then
+  if ! command -v go >/dev/null 2>&1; then
+    printf 'missing required command: go\n' >&2
+    exit 1
+  fi
+
+  gofmt_output="$(gofmt -l operator)"
+  if [[ -n "${gofmt_output}" ]]; then
+    printf 'gofmt required for:\n%s\n' "${gofmt_output}" >&2
+    exit 1
+  fi
+
+  (cd operator && go test ./...)
+fi
+
 printf 'repository validation passed\n'

@@ -14,5 +14,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: operator/go.mod
+
       - name: Validate repository scaffold
         run: bash scripts/validate-repo.sh
