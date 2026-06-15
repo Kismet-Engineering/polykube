@@ -71,6 +71,12 @@ cilium_cli() {
   KUBECONFIG="${kubeconfig_bundle}" cilium "$@"
 }
 
+cilium_kubectl() {
+  local kubeconfig="$1"
+  shift
+  kubectl --kubeconfig "${kubeconfig}" "$@"
+}
+
 cilium_cluster_id_for() {
   local cluster="$1"
   case "${cluster}" in

@@ -75,6 +75,16 @@ flag "--destination <cluster>" help="Destination cluster name" default="beta"
 '''
 run = "bash ./examples/local-multicluster/scripts/cilium_verify.sh"
 
+[tasks."local:cilium:global-service:probe"]
+description = "Probe Cilium global service routing across local clusters"
+usage = '''
+flag "--source <cluster>" help="Source cluster name" default="alpha"
+flag "--destination <cluster>" help="Destination cluster name" default="beta"
+flag "--namespace <name>" help="Probe namespace" default="cilium-mesh-test"
+flag "--service <name>" help="Global service name" default="mesh-echo"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_global_service_probe.sh"
+
 [tasks."local:cilium:status"]
 description = "Show Cilium and ClusterMesh status"
 usage = '''

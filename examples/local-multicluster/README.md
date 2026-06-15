@@ -1,6 +1,6 @@
 # Local Multicluster Example
 
-This example is the first repeatable Polykube validation path. It currently supports local k0s cluster lifecycle plus Cilium/ClusterMesh bootstrap. Workload routing probes will be added in a follow-up pass.
+This example is the first repeatable Polykube validation path. It currently supports local k0s cluster lifecycle, Cilium/ClusterMesh bootstrap, and a global-service routing probe.
 
 ## Prerequisites
 
@@ -49,6 +49,7 @@ mise run local:cilium:install -- --clusters alpha,beta
 mise run local:cilium:clustermesh:enable -- --clusters alpha,beta --service-type NodePort
 mise run local:cilium:clustermesh:connect -- --source alpha --destination beta
 mise run local:cilium:verify -- --source alpha --destination beta
+mise run local:cilium:global-service:probe -- --source alpha --destination beta
 ```
 
 Inspect or reset Cilium state:
@@ -66,4 +67,4 @@ mise run local:cilium:reset -- --clusters alpha,beta
 - sample workload reconciled across members
 - routing and status verified without cloud credentials
 
-Current status: the two-cluster lifecycle and Cilium/ClusterMesh bootstrap are scaffolded. Workload routing validation remains TODO.
+Current status: the two-cluster lifecycle, Cilium/ClusterMesh bootstrap, and global-service routing probe are scaffolded. Operator-backed workload reconciliation remains TODO.
