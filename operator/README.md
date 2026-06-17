@@ -7,6 +7,7 @@ The operator is the primary product boundary for the first public alpha.
 ## Current Scope
 
 - `api/*/v1alpha1`: initial Go type definitions for the accepted v0 CRD model.
-- `cmd/polykube-operator`: placeholder binary entrypoint.
+- `internal/scheme`: shared Kubernetes scheme registration for all Polykube API groups.
+- `cmd/polykube-operator`: controller-runtime manager entrypoint with health and readiness probes.
 
 Controllers, CRD manifests, generated deepcopy code, and runtime reconciliation are follow-up work.
