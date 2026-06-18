@@ -12,9 +12,11 @@ required_files=(
   CODE_OF_CONDUCT.md
   docs/architecture.md
   docs/roadmap.md
+  docs/known-limitations.md
   docs/decisions/0001-project-identity.md
   docs/decisions/0002-public-alpha-scope.md
   docs/decisions/0003-crd-model-v0.md
+  docs/release/public-alpha-checklist.md
   gitops/components/operator/README.md
   gitops/components/operator/kustomization.yaml
   gitops/components/operator/namespace.yaml

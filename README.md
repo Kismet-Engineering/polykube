@@ -29,6 +29,7 @@ Private alpha scaffold. No production guarantees yet.
 - Polykube will not hide hard operational tradeoffs behind vague automation.
 
 See `docs/decisions/0002-public-alpha-scope.md` for the first public alpha boundary and extraction rules.
+Known alpha limitations are documented in `docs/known-limitations.md`.
 
 ## Initial Layout
 
@@ -39,6 +40,10 @@ See `docs/decisions/0002-public-alpha-scope.md` for the first public alpha bound
 - `examples/aws-gcp/`: reference AWS/GCP bootstrap path.
 - `docs/`: architecture, roadmap, decisions, and contributor-facing docs.
 - `scripts/`: local helper scripts.
+
+## Release Readiness
+
+The repository must satisfy `docs/release/public-alpha-checklist.md` before public visibility is enabled.
 
 ## Project Identity
 
