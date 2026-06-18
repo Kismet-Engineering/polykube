@@ -12,4 +12,4 @@ The operator is the primary product boundary for the first public alpha.
 - `internal/scheme`: shared Kubernetes scheme registration for all Polykube API groups.
 - `cmd/polykube-operator`: controller-runtime manager entrypoint with health and readiness probes.
 
-The current `Workload` controller materializes local `Deployment` and `Service` objects from desired state. Generated deepcopy code, richer health/status reporting, and multi-cluster placement are follow-up work.
+The current `Workload` controller materializes local `Deployment` and `Service` objects from desired state and reports local reconciliation status through `Workload.status`. Generated deepcopy code, richer health signals, and multi-cluster placement are follow-up work.

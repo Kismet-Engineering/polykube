@@ -9,6 +9,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -50,7 +51,7 @@ func TestWorkloadReconcileObservesExistingWorkload(t *testing.T) {
 	}
 
 	reconciler := &WorkloadReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload).Build(),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload).WithStatusSubresource(workload).Build(),
 		Scheme: scheme,
 	}
 
@@ -91,7 +92,7 @@ func TestWorkloadReconcileAppliesDeploymentAndService(t *testing.T) {
 	}
 
 	reconciler := &WorkloadReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload).Build(),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload).WithStatusSubresource(workload).Build(),
 		Scheme: scheme,
 	}
 
@@ -151,16 +152,27 @@ func TestWorkloadReconcileDeletesServiceWhenNoPortsDeclared(t *testing.T) {
 	}
 
 	workload := &runtimeapi.Workload{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api", UID: "workload-uid"},
 		Spec: runtimeapi.WorkloadSpec{
 			FederationRef: runtimeapi.NamespacedObjectReference{Name: "primary"},
 			Image:         "example/api:v1",
 		},
 	}
-	service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"}}
+	service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{
+		Namespace: "demo",
+		Name:      "api",
+		OwnerReferences: []metav1.OwnerReference{{
+			APIVersion:         runtimeapi.GroupName + "/v1alpha1",
+			Kind:               "Workload",
+			Name:               "api",
+			UID:                "workload-uid",
+			Controller:         ptr(true),
+			BlockOwnerDeletion: ptr(true),
+		}},
+	}}
 
 	reconciler := &WorkloadReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, service).Build(),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, service).WithStatusSubresource(workload).Build(),
 		Scheme: scheme,
 	}
 
@@ -178,4 +190,141 @@ func TestWorkloadReconcileDeletesServiceWhenNoPortsDeclared(t *testing.T) {
 	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &deployment); err != nil {
 		t.Fatalf("Get Deployment error = %v", err)
 	}
+}
+
+func TestWorkloadReconcileKeepsUnownedServiceWhenNoPortsDeclared(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec: runtimeapi.WorkloadSpec{
+			FederationRef: runtimeapi.NamespacedObjectReference{Name: "primary"},
+			Image:         "example/api:v1",
+		},
+	}
+	service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"}}
+
+	reconciler := &WorkloadReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, service).WithStatusSubresource(workload).Build(),
+		Scheme: scheme,
+	}
+
+	if _, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+
+	var existing corev1.Service
+	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &existing); err != nil {
+		t.Fatalf("Get Service error = %v", err)
+	}
+}
+
+func TestWorkloadReconcileReportsReconcilingStatus(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api", Generation: 3},
+		Spec: runtimeapi.WorkloadSpec{
+			FederationRef: runtimeapi.NamespacedObjectReference{Name: "primary"},
+			Image:         "example/api:v2",
+		},
+	}
+
+	reconciler := &WorkloadReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload).WithStatusSubresource(workload).Build(),
+		Scheme: scheme,
+	}
+
+	if _, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+
+	var updated runtimeapi.Workload
+	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &updated); err != nil {
+		t.Fatalf("Get Workload error = %v", err)
+	}
+	if updated.Status.ObservedGeneration != 3 {
+		t.Fatalf("ObservedGeneration = %d, want 3", updated.Status.ObservedGeneration)
+	}
+	if updated.Status.ActiveImage != "example/api:v2" {
+		t.Fatalf("ActiveImage = %q, want example/api:v2", updated.Status.ActiveImage)
+	}
+	if len(updated.Status.Targets) != 1 {
+		t.Fatalf("Targets length = %d, want 1", len(updated.Status.Targets))
+	}
+	target := updated.Status.Targets[0]
+	if target.ClusterMemberRef != localClusterMemberRef {
+		t.Fatalf("ClusterMemberRef = %q, want %q", target.ClusterMemberRef, localClusterMemberRef)
+	}
+	if target.State != runtimeapi.WorkloadTargetStateReconciling {
+		t.Fatalf("Target state = %q, want %q", target.State, runtimeapi.WorkloadTargetStateReconciling)
+	}
+	if target.RuntimeRef != "api" {
+		t.Fatalf("RuntimeRef = %q, want api", target.RuntimeRef)
+	}
+	if target.LastTransitionTime == nil {
+		t.Fatalf("LastTransitionTime is nil")
+	}
+
+	applied := apimeta.FindStatusCondition(updated.Status.Conditions, "RuntimeObjectsApplied")
+	if applied == nil || applied.Status != metav1.ConditionTrue {
+		t.Fatalf("RuntimeObjectsApplied condition = %#v, want True", applied)
+	}
+	available := apimeta.FindStatusCondition(updated.Status.Conditions, "Available")
+	if available == nil || available.Status != metav1.ConditionFalse || available.Reason != "DeploymentReconciling" {
+		t.Fatalf("Available condition = %#v, want False DeploymentReconciling", available)
+	}
+}
+
+func TestWorkloadReconcileReportsAvailableStatus(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api", Generation: 4},
+		Spec: runtimeapi.WorkloadSpec{
+			FederationRef: runtimeapi.NamespacedObjectReference{Name: "primary"},
+			Image:         "example/api:v3",
+		},
+	}
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Status: appsv1.DeploymentStatus{Conditions: []appsv1.DeploymentCondition{{
+			Type:   appsv1.DeploymentAvailable,
+			Status: corev1.ConditionTrue,
+		}}},
+	}
+
+	reconciler := &WorkloadReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, deployment).WithStatusSubresource(workload).Build(),
+		Scheme: scheme,
+	}
+
+	if _, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+
+	var updated runtimeapi.Workload
+	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &updated); err != nil {
+		t.Fatalf("Get Workload error = %v", err)
+	}
+	if updated.Status.Targets[0].State != runtimeapi.WorkloadTargetStateAvailable {
+		t.Fatalf("Target state = %q, want %q", updated.Status.Targets[0].State, runtimeapi.WorkloadTargetStateAvailable)
+	}
+	available := apimeta.FindStatusCondition(updated.Status.Conditions, "Available")
+	if available == nil || available.Status != metav1.ConditionTrue || available.Reason != "DeploymentAvailable" {
+		t.Fatalf("Available condition = %#v, want True DeploymentAvailable", available)
+	}
+}
+
+func ptr[T any](value T) *T {
+	return &value
 }

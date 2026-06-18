@@ -6,7 +6,9 @@ import (
 	runtimeapi "github.com/Kismet-Engineering/polykube/operator/api/runtime/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -16,7 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const workloadNameLabel = "polykube.dev/workload"
+const (
+	workloadNameLabel     = "polykube.dev/workload"
+	localClusterMemberRef = "local"
+)
 
 type WorkloadReconciler struct {
 	client.Client
@@ -38,6 +43,9 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 	if err := r.reconcileService(ctx, &workload); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := r.reconcileStatus(ctx, &workload); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -88,6 +96,14 @@ func (r *WorkloadReconciler) reconcileService(ctx context.Context, workload *run
 	service.Namespace = workload.Namespace
 
 	if len(workload.Spec.Ports) == 0 {
+		if err := r.Get(ctx, client.ObjectKeyFromObject(workload), service); apierrors.IsNotFound(err) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		if !metav1.IsControlledBy(service, workload) {
+			return nil
+		}
 		if err := r.Delete(ctx, service); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
@@ -107,11 +123,93 @@ func (r *WorkloadReconciler) reconcileService(ctx context.Context, workload *run
 	return err
 }
 
+func (r *WorkloadReconciler) reconcileStatus(ctx context.Context, workload *runtimeapi.Workload) error {
+	var deployment appsv1.Deployment
+	if err := r.Get(ctx, client.ObjectKeyFromObject(workload), &deployment); err != nil {
+		return err
+	}
+
+	nextStatus := workload.Status
+	nextStatus.ObservedGeneration = workload.Generation
+	nextStatus.ActiveImage = workload.Spec.Image
+	nextStatus.Targets = []runtimeapi.WorkloadTargetStatus{workloadTargetStatus(workload, &deployment)}
+
+	apimeta.SetStatusCondition(&nextStatus.Conditions, metav1.Condition{
+		Type:               "RuntimeObjectsApplied",
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: workload.Generation,
+		Reason:             "ApplySucceeded",
+		Message:            "Deployment and Service desired state applied to the local cluster.",
+	})
+	apimeta.SetStatusCondition(&nextStatus.Conditions, availabilityCondition(workload, &deployment))
+
+	if apiequality.Semantic.DeepEqual(workload.Status, nextStatus) {
+		return nil
+	}
+
+	workload.Status = nextStatus
+	return r.Status().Update(ctx, workload)
+}
+
 func workloadLabels(workload *runtimeapi.Workload) map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/managed-by": "polykube-operator",
 		workloadNameLabel:              workload.Name,
 	}
+}
+
+func workloadTargetStatus(workload *runtimeapi.Workload, deployment *appsv1.Deployment) runtimeapi.WorkloadTargetStatus {
+	state := runtimeapi.WorkloadTargetStateReconciling
+	message := "Deployment is reconciling in the local cluster."
+	if deploymentAvailable(deployment) {
+		state = runtimeapi.WorkloadTargetStateAvailable
+		message = "Deployment is available in the local cluster."
+	}
+
+	now := metav1.Now()
+	for _, target := range workload.Status.Targets {
+		if target.ClusterMemberRef == localClusterMemberRef && target.State == state && target.LastTransitionTime != nil {
+			now = *target.LastTransitionTime
+			break
+		}
+	}
+
+	return runtimeapi.WorkloadTargetStatus{
+		ClusterMemberRef:   localClusterMemberRef,
+		State:              state,
+		RuntimeRef:         deployment.Name,
+		LastTransitionTime: &now,
+		Message:            message,
+	}
+}
+
+func availabilityCondition(workload *runtimeapi.Workload, deployment *appsv1.Deployment) metav1.Condition {
+	if deploymentAvailable(deployment) {
+		return metav1.Condition{
+			Type:               "Available",
+			Status:             metav1.ConditionTrue,
+			ObservedGeneration: workload.Generation,
+			Reason:             "DeploymentAvailable",
+			Message:            "Deployment is available in the local cluster.",
+		}
+	}
+
+	return metav1.Condition{
+		Type:               "Available",
+		Status:             metav1.ConditionFalse,
+		ObservedGeneration: workload.Generation,
+		Reason:             "DeploymentReconciling",
+		Message:            "Deployment has not reported availability yet.",
+	}
+}
+
+func deploymentAvailable(deployment *appsv1.Deployment) bool {
+	for _, condition := range deployment.Status.Conditions {
+		if condition.Type == appsv1.DeploymentAvailable && condition.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }
 
 func metav1LabelSelector(labels map[string]string) *metav1.LabelSelector {
