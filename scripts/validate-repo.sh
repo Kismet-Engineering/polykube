@@ -15,6 +15,13 @@ required_files=(
   docs/decisions/0001-project-identity.md
   docs/decisions/0002-public-alpha-scope.md
   docs/decisions/0003-crd-model-v0.md
+  gitops/components/operator/README.md
+  gitops/components/operator/kustomization.yaml
+  gitops/components/operator/namespace.yaml
+  gitops/components/operator/service-account.yaml
+  gitops/components/operator/cluster-role.yaml
+  gitops/components/operator/cluster-role-binding.yaml
+  gitops/components/operator/deployment.yaml
   operator/config/crd/bases/data.polykube.dev_datastorebindings.yaml
   operator/config/crd/bases/infrastructure.polykube.dev_clustermembers.yaml
   operator/config/crd/bases/infrastructure.polykube.dev_federations.yaml
@@ -61,6 +68,10 @@ fi
 
 if command -v kubectl >/dev/null 2>&1 && kubectl config current-context >/dev/null 2>&1; then
   kubectl apply --dry-run=client --validate=false -f operator/config/crd/bases >/dev/null
+fi
+
+if command -v kubectl >/dev/null 2>&1; then
+  kubectl kustomize gitops/components/operator >/dev/null
 fi
 
 printf 'repository validation passed\n'

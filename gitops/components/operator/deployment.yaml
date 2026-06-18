@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: polykube-operator
+  namespace: polykube-system
+  labels:
+    app.kubernetes.io/name: polykube-operator
+    app.kubernetes.io/part-of: polykube
+    app.kubernetes.io/managed-by: gitops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: polykube-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: polykube-operator
+        app.kubernetes.io/part-of: polykube
+    spec:
+      serviceAccountName: polykube-operator
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: manager
+          image: polykube-operator:dev
+          imagePullPolicy: IfNotPresent
+          args:
+            - --leader-elect
+            - --metrics-bind-address=:8080
+            - --health-probe-bind-address=:8081
+          ports:
+            - name: metrics
+              containerPort: 8080
+            - name: health
+              containerPort: 8081
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
