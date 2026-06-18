@@ -15,6 +15,11 @@ required_files=(
   docs/decisions/0001-project-identity.md
   docs/decisions/0002-public-alpha-scope.md
   docs/decisions/0003-crd-model-v0.md
+  operator/config/crd/bases/data.polykube.dev_datastorebindings.yaml
+  operator/config/crd/bases/infrastructure.polykube.dev_clustermembers.yaml
+  operator/config/crd/bases/infrastructure.polykube.dev_federations.yaml
+  operator/config/crd/bases/routing.polykube.dev_serviceendpoints.yaml
+  operator/config/crd/bases/runtime.polykube.dev_workloads.yaml
 )
 
 for path in "${required_files[@]}"; do
@@ -52,6 +57,10 @@ if [[ -f operator/go.mod ]]; then
   fi
 
   (cd operator && go test ./...)
+fi
+
+if command -v kubectl >/dev/null 2>&1; then
+  kubectl apply --dry-run=client --validate=false -f operator/config/crd/bases >/dev/null
 fi
 
 printf 'repository validation passed\n'
