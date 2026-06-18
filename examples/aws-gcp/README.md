@@ -1,3 +1,8 @@
 # AWS/GCP Example
 
-This example will document a reference AWS/GCP bootstrap path after the local demo is working and sanitized.
+This example documents the reference AWS/GCP bootstrap path as optional example wiring, not a required product assumption.
+
+- OpenTofu manifest conversion root: `infra/tofu/examples/aws-gcp`
+- GitOps operator component: `gitops/components/operator`
+
+The OpenTofu example consumes caller-provided cluster outputs and renders Polykube `ClusterMember` and `Federation` manifests for review before GitOps handoff.

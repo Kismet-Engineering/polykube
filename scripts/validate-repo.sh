@@ -22,6 +22,16 @@ required_files=(
   gitops/components/operator/cluster-role.yaml
   gitops/components/operator/cluster-role-binding.yaml
   gitops/components/operator/deployment.yaml
+  infra/tofu/modules/polykube-manifests/README.md
+  infra/tofu/modules/polykube-manifests/versions.tf
+  infra/tofu/modules/polykube-manifests/variables.tf
+  infra/tofu/modules/polykube-manifests/main.tf
+  infra/tofu/modules/polykube-manifests/outputs.tf
+  infra/tofu/examples/aws-gcp/README.md
+  infra/tofu/examples/aws-gcp/versions.tf
+  infra/tofu/examples/aws-gcp/variables.tf
+  infra/tofu/examples/aws-gcp/main.tf
+  infra/tofu/examples/aws-gcp/outputs.tf
   operator/config/crd/bases/data.polykube.dev_datastorebindings.yaml
   operator/config/crd/bases/infrastructure.polykube.dev_clustermembers.yaml
   operator/config/crd/bases/infrastructure.polykube.dev_federations.yaml
@@ -64,6 +74,10 @@ if [[ -f operator/go.mod ]]; then
   fi
 
   (cd operator && go test ./...)
+fi
+
+if command -v tofu >/dev/null 2>&1; then
+  tofu fmt -check -recursive infra/tofu
 fi
 
 if command -v kubectl >/dev/null 2>&1 && kubectl config current-context >/dev/null 2>&1; then
