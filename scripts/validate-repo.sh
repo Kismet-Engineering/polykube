@@ -59,7 +59,7 @@ if [[ -f operator/go.mod ]]; then
   (cd operator && go test ./...)
 fi
 
-if command -v kubectl >/dev/null 2>&1; then
+if command -v kubectl >/dev/null 2>&1 && kubectl config current-context >/dev/null 2>&1; then
   kubectl apply --dry-run=client --validate=false -f operator/config/crd/bases >/dev/null
 fi
 
