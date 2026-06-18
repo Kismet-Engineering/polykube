@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 
+	"github.com/Kismet-Engineering/polykube/operator/internal/controller"
 	polykubescheme "github.com/Kismet-Engineering/polykube/operator/internal/scheme"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -43,6 +44,14 @@ func main() {
 	})
 	if err != nil {
 		log.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	if err := (&controller.WorkloadReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		log.Error(err, "unable to create Workload controller")
 		os.Exit(1)
 	}
 
