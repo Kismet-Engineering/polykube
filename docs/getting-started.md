@@ -21,6 +21,18 @@ This checks repository sanitization, shell syntax, Go formatting, Go tests, requ
 
 ## Run The Local Substrate Demo
 
+The local demo exercises the substrate pieces before any cloud rollout.
+
+```mermaid
+flowchart LR
+    Create[Create local k0s clusters] --> Kubeconfig[Export combined kubeconfig]
+    Kubeconfig --> Preflight[Cilium preflight]
+    Preflight --> Install[Install Cilium]
+    Install --> Mesh[Enable and connect ClusterMesh]
+    Mesh --> Verify[Verify cross-cluster connectivity]
+    Verify --> Probe[Probe global-service routing]
+```
+
 Create two local clusters:
 
 ```bash
