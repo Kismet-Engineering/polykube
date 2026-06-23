@@ -2,16 +2,19 @@
 
 Kubernetes-native infrastructure for portable backend workloads across clusters, regions, and clouds.
 
-Polykube is an open source project for teams that want multicluster backends. It defines provider-neutral Kubernetes APIs for cluster membership, workload placement, service routing, and optional data dependency intent, then reconciles the local slice of that desired state from inside each participating cluster.
+Polykube is an open source project for teams that want portable multicluster backend infrastructure. It defines provider-neutral Kubernetes APIs for cluster membership, workload placement, service routing, and optional data dependency intent, then reconciles the local slice of that desired state from inside each participating cluster.
 
-This initial version includes:
+This initial alpha includes:
 
 - CRDs under `polykube.dev` for federation, runtime, routing, and data intent
-- workload runtime resources reconciliation through a Kubernetes operator
-- local multicluster validation behavior before any cloud rollout
+- reconciliation of workload runtime resources through a Kubernetes operator
+- local multicluster validation before any cloud rollout
 - cloud bootstrap output conversion into reviewable Kubernetes manifests
 - runtime components provided to GitOps instead of hiding live mutations
 
+## Status
+
+Alpha/experimental. No production guarantees yet.
 
 ## Goals
 
