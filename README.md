@@ -1,14 +1,19 @@
 # Polykube
 
-Polykube is an experimental open source toolkit for running backend workloads across multiple Kubernetes clusters, regions, and cloud providers without binding the application model to one vendor.
+Kubernetes-native infrastructure for portable backend workloads across clusters, regions, and clouds.
 
-The project is starting from a private extraction phase. The first public release will focus on a small, auditable path:
+Polykube is a fresh-start open source project for teams that want multicluster backend patterns they can understand, run, and audit themselves. It defines provider-neutral Kubernetes APIs for cluster membership, workload placement, service routing, and optional data dependency intent, then reconciles the local slice of that desired state from inside each participating cluster.
 
-- bootstrap portable cloud substrate primitives
-- describe federated cluster membership declaratively
-- reconcile workloads through a Kubernetes-native operator
-- validate cross-cluster service routing locally before cloud rollout
-- document the operational tradeoffs honestly
+Polykube is not a hosted control plane, a SaaS product, or a new cloud abstraction layer. The public alpha is intentionally small: prove the reusable Kubernetes pattern, keep cloud assumptions visible, and make every bootstrap, routing, and reconciliation step reviewable.
+
+The first public release focuses on a small, auditable path:
+
+- define CRDs under `polykube.dev` for federation, runtime, routing, and data intent
+- reconcile workload runtime resources through a Kubernetes operator
+- validate local multicluster behavior before any cloud rollout
+- convert cloud bootstrap outputs into reviewable Kubernetes manifests
+- hand runtime components to GitOps instead of hiding live mutations
+- document operational tradeoffs and known limitations directly
 
 ## Status
 
@@ -16,10 +21,10 @@ Private alpha scaffold. No production guarantees yet.
 
 ## Goals
 
-- Reduce cloud and region lock-in for backend services.
-- Keep the control plane Kubernetes-native and self-hostable.
-- Make multicluster behavior observable, testable, and reversible.
-- Provide reference patterns that organizations can adopt independently.
+- Reduce cloud, region, and cluster lock-in for backend services.
+- Keep desired state in Kubernetes resources and reconciled by local-cluster controllers.
+- Make multicluster behavior observable, testable, and reversible before it reaches production infrastructure.
+- Provide reference patterns that can be adopted independently rather than requiring a hosted product.
 
 ## Non-Goals
 
