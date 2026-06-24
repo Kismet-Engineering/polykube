@@ -13,6 +13,7 @@ required_files=(
   docs/architecture.md
   docs/roadmap.md
   docs/known-limitations.md
+  docs/release/operator-images.md
   docs/decisions/0001-project-identity.md
   docs/decisions/0002-public-alpha-scope.md
   docs/decisions/0003-crd-model-v0.md
@@ -34,6 +35,7 @@ required_files=(
   infra/tofu/examples/aws-gcp/variables.tf
   infra/tofu/examples/aws-gcp/main.tf
   infra/tofu/examples/aws-gcp/outputs.tf
+  operator/Dockerfile
   operator/config/crd/bases/data.polykube.dev_datastorebindings.yaml
   operator/config/crd/bases/infrastructure.polykube.dev_clustermembers.yaml
   operator/config/crd/bases/infrastructure.polykube.dev_federations.yaml

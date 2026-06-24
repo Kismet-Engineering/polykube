@@ -65,6 +65,21 @@ Render the GitOps operator component:
 kubectl kustomize gitops/components/operator
 ```
 
+Build and render the local operator image path through mise:
+
+```bash
+mise run operator:test
+mise run operator:image:build -- --image polykube-operator:dev
+mise run operator:render -- --image polykube-operator:dev
+```
+
+After creating local clusters, load and deploy the local image into each k0s runtime:
+
+```bash
+mise run local:operator:image:load -- --clusters alpha,beta --image polykube-operator:dev
+mise run local:operator:deploy -- --clusters alpha,beta --image polykube-operator:dev
+```
+
 If OpenTofu is installed, check formatting for the bootstrap scaffold:
 
 ```bash
@@ -74,3 +89,5 @@ tofu fmt -check -recursive infra/tofu
 ## Current Boundary
 
 The local substrate demo validates cluster lifecycle, Cilium/ClusterMesh, and global-service routing. Operator-backed workload installation across all local members is still tracked as a known limitation in `docs/known-limitations.md`.
+
+Operator image publishing and tag conventions are documented in `docs/release/operator-images.md`.

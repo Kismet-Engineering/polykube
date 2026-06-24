@@ -1,4 +1,5 @@
 [tools]
+go = "1.26.4"
 colima = "0.9.1"
 kubectl = "1.35.0"
 helm = "3.18.6"
@@ -102,3 +103,93 @@ run = "bash ./examples/local-multicluster/scripts/cilium_reset.sh"
 [tasks."validate:repo"]
 description = "Run repository validation checks"
 run = "bash ./scripts/validate-repo.sh"
+
+[tasks."operator:test"]
+description = "Run operator unit tests"
+run = "cd operator && go test ./..."
+
+[tasks."operator:build"]
+description = "Build the operator binary into bin/"
+run = "mkdir -p bin && cd operator && go build -trimpath -o ../bin/polykube-operator ./cmd/polykube-operator"
+
+[tasks."operator:image:build"]
+description = "Build the operator container image"
+usage = '''
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+'''
+run = '''
+image="${usage_image:-polykube-operator:dev}"
+docker build -f operator/Dockerfile -t "${image}" .
+'''
+
+[tasks."operator:image:push"]
+description = "Push the operator container image"
+usage = '''
+flag "--image <image>" help="Operator image reference" default="ghcr.io/kismet-engineering/polykube-operator:dev"
+'''
+run = '''
+image="${usage_image:-ghcr.io/kismet-engineering/polykube-operator:dev}"
+docker push "${image}"
+'''
+
+[tasks."operator:render"]
+description = "Render operator Kubernetes manifests"
+usage = '''
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+'''
+run = "bash ./scripts/operator_render.sh --image \"${usage_image:-polykube-operator:dev}\""
+
+[tasks."operator:deploy"]
+description = "Apply operator CRDs and runtime manifests to the current Kubernetes context"
+usage = '''
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+flag "--context <context>" help="Optional kubectl context" default=""
+flag "--kubeconfig <path>" help="Optional kubeconfig path" default=""
+flag "--wait <bool>" help="Wait for operator rollout" default="true"
+'''
+run = '''
+bash ./scripts/operator_deploy.sh \
+  --image "${usage_image:-polykube-operator:dev}" \
+  --context "${usage_context:-}" \
+  --kubeconfig "${usage_kubeconfig:-}" \
+  --wait "${usage_wait:-true}"
+'''
+
+[tasks."operator:undeploy"]
+description = "Remove operator runtime manifests and optionally CRDs from the current Kubernetes context"
+usage = '''
+flag "--context <context>" help="Optional kubectl context" default=""
+flag "--kubeconfig <path>" help="Optional kubeconfig path" default=""
+flag "--crds <bool>" help="Delete CRDs after operator runtime objects" default="true"
+'''
+run = '''
+bash ./scripts/operator_undeploy.sh \
+  --context "${usage_context:-}" \
+  --kubeconfig "${usage_kubeconfig:-}" \
+  --crds "${usage_crds:-true}"
+'''
+
+[tasks."local:operator:image:load"]
+description = "Load the local operator image into local k0s cluster runtimes"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+'''
+run = "bash ./examples/local-multicluster/scripts/operator_image_load.sh --clusters \"${usage_clusters:-alpha,beta}\" --image \"${usage_image:-polykube-operator:dev}\""
+
+[tasks."local:operator:deploy"]
+description = "Deploy the operator to local k0s clusters"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+flag "--wait <bool>" help="Wait for operator rollouts" default="true"
+'''
+run = "bash ./examples/local-multicluster/scripts/operator_deploy.sh --clusters \"${usage_clusters:-alpha,beta}\" --image \"${usage_image:-polykube-operator:dev}\" --wait \"${usage_wait:-true}\""
+
+[tasks."local:operator:undeploy"]
+description = "Remove the operator from local k0s clusters"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--crds <bool>" help="Delete CRDs after operator runtime objects" default="true"
+'''
+run = "bash ./examples/local-multicluster/scripts/operator_undeploy.sh --clusters \"${usage_clusters:-alpha,beta}\" --crds \"${usage_crds:-true}\""

@@ -20,4 +20,4 @@ This component installs the Polykube operator runtime objects for GitOps reconci
 kubectl kustomize gitops/components/operator
 ```
 
-Apply through your GitOps controller after substituting the operator image in an overlay.
+Apply through your GitOps controller after substituting the operator image in an overlay. Published image tags and local build commands are documented in `docs/release/operator-images.md`.
