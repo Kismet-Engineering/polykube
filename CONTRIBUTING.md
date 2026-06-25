@@ -1,6 +1,6 @@
 # Contributing
 
-Polykube is currently in private alpha extraction. Contributions should keep the repository neutral, portable, and free of project-specific credentials, domains, or business assumptions.
+Polykube is currently in experimental public alpha. Contributions should keep the repository neutral, portable, and free of project-specific credentials, domains, or business assumptions.
 
 ## Ground Rules
 

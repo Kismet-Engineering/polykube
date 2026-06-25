@@ -1,6 +1,6 @@
 # Security Policy
 
-Polykube is in private alpha. Security reports should be sent privately to the repository maintainers until a public disclosure process is established.
+Polykube is in experimental public alpha. Security reports should be sent privately to the repository maintainers until a public disclosure process is established.
 
 ## Supported Versions
 

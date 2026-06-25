@@ -1,5 +1,10 @@
 # Polykube
 
+[![CI](https://github.com/kismet-engineering/polykube/actions/workflows/ci.yml/badge.svg)](https://github.com/kismet-engineering/polykube/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+![Status: public alpha](https://img.shields.io/badge/status-public%20alpha-orange.svg)
+[![GHCR: polykube-operator](https://img.shields.io/badge/GHCR-polykube--operator-blue.svg)](https://github.com/kismet-engineering/polykube/pkgs/container/polykube-operator)
+
 Kubernetes-native infrastructure for portable backend workloads across clusters, regions, and clouds.
 
 ![Polykube architecture: a GitOps repository delivers Workload manifests to multiple member clusters, where the Polykube operator in each cluster reconciles local workloads. Cilium ClusterMesh connects the clusters for cross-cloud pod routing.](docs/polykube-demo.svg)
@@ -11,7 +16,19 @@ Kubernetes-native infrastructure for portable backend workloads across clusters,
 - **Observable.** Per-cluster workload status is recorded under `Workload.status.targets[]` — queryable like any Kubernetes resource, aggregatable across clusters without a separate control plane.
 - **Self-hostable.** No hosted control plane, no SaaS dependency, no required private cloud account.
 
-Alpha/experimental — no production guarantees yet. Known limitations: [`docs/known-limitations.md`](docs/known-limitations.md).
+## What Polykube is
+
+Polykube is a Kubernetes-native, GitOps-driven pattern for portable backend workloads. Desired state is delivered as Kubernetes resources, and reconciliation happens locally inside each member cluster. There is no hosted control plane; each operator acts only on the cluster where it runs.
+
+## What Polykube is not
+
+Polykube is not a SaaS platform, a cloud provisioning framework, a progressive rollout engine, a secret replication system, or a production-ready global traffic manager.
+
+## Current implementation status
+
+Polykube is an experimental public alpha. The `Workload` controller currently reconciles `Deployment` and `Service` resources. Several CRDs define the intended architecture, but `ClusterMember`, `Federation`, `ServiceEndpoint`, and `DatastoreBinding` are not fully reconciled yet.
+
+Known limitations are tracked in [`docs/known-limitations.md`](docs/known-limitations.md), which is the authoritative source for current implementation boundaries.
 
 [**Get started →**](docs/getting-started.md)
 
@@ -35,6 +52,16 @@ You provision clusters and connect them with a cross-cluster networking layer (C
 - `examples/aws-gcp/`: reference end-to-end path for AWS and GCP clusters.
 - `docs/`: architecture, roadmap, decisions, and contributor-facing docs.
 - `scripts/`: local helper scripts.
+
+## For Contributors
+
+Start with [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/architecture.md`](docs/architecture.md), [`docs/known-limitations.md`](docs/known-limitations.md), and [`docs/decisions/0002-public-alpha-scope.md`](docs/decisions/0002-public-alpha-scope.md).
+
+Before proposing changes, run:
+
+```bash
+bash scripts/validate-repo.sh
+```
 
 ## Origin and development notes
 
