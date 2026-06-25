@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+tmp/
+examples/local-multicluster/state/
+dist/
+build/
+bin/
+coverage/
+*.log
+*.out
+*.test

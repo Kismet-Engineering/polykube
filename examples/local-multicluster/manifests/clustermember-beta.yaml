@@ -1,0 +1,12 @@
+apiVersion: infrastructure.polykube.dev/v1alpha1
+kind: ClusterMember
+metadata:
+  name: beta
+  labels:
+    env: dev
+    provider: kind
+spec:
+  provider: kind
+  region: local
+  environment: dev
+  clusterName: beta

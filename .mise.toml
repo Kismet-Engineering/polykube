@@ -1,0 +1,202 @@
+[tools]
+go = "1.26.4"
+colima = "0.9.1"
+kubectl = "1.35.0"
+helm = "3.18.6"
+"aqua:cilium/cilium-cli" = "v0.18.8"
+
+[tasks."local:cluster:create"]
+description = "Create local k0s clusters for the Polykube demo"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--workers <count>" help="Extra workers per cluster" default="0"
+flag "--image <image>" help="k0s OCI image" default="docker.io/k0sproject/k0s:v1.35.2-k0s.0"
+flag "--recreate <bool>" help="Delete and recreate clusters if they already exist" default="false"
+'''
+run = "bash ./examples/local-multicluster/scripts/cluster_create.sh"
+
+[tasks."local:cluster:recreate"]
+description = "Recreate local k0s clusters for the Polykube demo"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--workers <count>" help="Extra workers per cluster" default="0"
+flag "--image <image>" help="k0s OCI image" default="docker.io/k0sproject/k0s:v1.35.2-k0s.0"
+flag "--recreate <bool>" help="Delete and recreate clusters if they already exist" default="true"
+'''
+run = "bash ./examples/local-multicluster/scripts/cluster_create.sh"
+
+[tasks."local:cluster:delete"]
+description = "Delete local k0s clusters for the Polykube demo"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--all" help="Delete all local Polykube k0s clusters" default="false"
+'''
+run = "bash ./examples/local-multicluster/scripts/cluster_delete.sh"
+
+[tasks."local:cluster:status"]
+description = "Show local k0s cluster status for the Polykube demo"
+run = "bash ./examples/local-multicluster/scripts/cluster_status.sh"
+
+[tasks."local:cilium:preflight"]
+description = "Check local Cilium prerequisites"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_preflight.sh"
+
+[tasks."local:cilium:install"]
+description = "Install Cilium on local k0s clusters"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--version <version>" help="Cilium version" default="1.18.2"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_install.sh"
+
+[tasks."local:cilium:clustermesh:enable"]
+description = "Enable Cilium ClusterMesh components"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--service-type <type>" help="ClusterMesh service type" default="NodePort"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_clustermesh_enable.sh"
+
+[tasks."local:cilium:clustermesh:connect"]
+description = "Connect local Cilium ClusterMesh peers"
+usage = '''
+flag "--source <cluster>" help="Source cluster name" default="alpha"
+flag "--destination <cluster>" help="Destination cluster name" default="beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_clustermesh_connect.sh"
+
+[tasks."local:cilium:verify"]
+description = "Verify local Cilium and ClusterMesh status"
+usage = '''
+flag "--source <cluster>" help="Source cluster name" default="alpha"
+flag "--destination <cluster>" help="Destination cluster name" default="beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_verify.sh"
+
+[tasks."local:cilium:global-service:probe"]
+description = "Probe Cilium global service routing across local clusters"
+usage = '''
+flag "--source <cluster>" help="Source cluster name" default="alpha"
+flag "--destination <cluster>" help="Destination cluster name" default="beta"
+flag "--namespace <name>" help="Probe namespace" default="cilium-mesh-test"
+flag "--service <name>" help="Global service name" default="mesh-echo"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_global_service_probe.sh"
+
+[tasks."local:cilium:status"]
+description = "Show Cilium and ClusterMesh status"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_status.sh"
+
+[tasks."local:cilium:reset"]
+description = "Remove Cilium resources from local clusters"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/cilium_reset.sh"
+
+[tasks."validate:repo"]
+description = "Run repository validation checks"
+run = "bash ./scripts/validate-repo.sh"
+
+[tasks."operator:test"]
+description = "Run operator unit tests"
+run = "cd operator && go test ./..."
+
+[tasks."operator:build"]
+description = "Build the operator binary into bin/"
+run = "mkdir -p bin && cd operator && go build -trimpath -o ../bin/polykube-operator ./cmd/polykube-operator"
+
+[tasks."operator:image:build"]
+description = "Build the operator container image"
+usage = '''
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+'''
+run = '''
+image="${usage_image:-polykube-operator:dev}"
+docker build -f operator/Dockerfile -t "${image}" .
+'''
+
+[tasks."operator:image:push"]
+description = "Push the operator container image"
+usage = '''
+flag "--image <image>" help="Operator image reference" default="ghcr.io/kismet-engineering/polykube-operator:dev"
+'''
+run = '''
+image="${usage_image:-ghcr.io/kismet-engineering/polykube-operator:dev}"
+docker push "${image}"
+'''
+
+[tasks."operator:render"]
+description = "Render operator Kubernetes manifests"
+usage = '''
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+'''
+run = "bash ./scripts/operator_render.sh --image \"${usage_image:-polykube-operator:dev}\""
+
+[tasks."operator:deploy"]
+description = "Apply operator CRDs and runtime manifests to the current Kubernetes context"
+usage = '''
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+flag "--context <context>" help="Optional kubectl context" default=""
+flag "--kubeconfig <path>" help="Optional kubeconfig path" default=""
+flag "--wait <bool>" help="Wait for operator rollout" default="true"
+'''
+run = '''
+bash ./scripts/operator_deploy.sh \
+  --image "${usage_image:-polykube-operator:dev}" \
+  --context "${usage_context:-}" \
+  --kubeconfig "${usage_kubeconfig:-}" \
+  --wait "${usage_wait:-true}"
+'''
+
+[tasks."operator:undeploy"]
+description = "Remove operator runtime manifests and optionally CRDs from the current Kubernetes context"
+usage = '''
+flag "--context <context>" help="Optional kubectl context" default=""
+flag "--kubeconfig <path>" help="Optional kubeconfig path" default=""
+flag "--crds <bool>" help="Delete CRDs after operator runtime objects" default="true"
+'''
+run = '''
+bash ./scripts/operator_undeploy.sh \
+  --context "${usage_context:-}" \
+  --kubeconfig "${usage_kubeconfig:-}" \
+  --crds "${usage_crds:-true}"
+'''
+
+[tasks."local:operator:image:load"]
+description = "Load the local operator image into local k0s cluster runtimes"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+'''
+run = "bash ./examples/local-multicluster/scripts/operator_image_load.sh --clusters \"${usage_clusters:-alpha,beta}\" --image \"${usage_image:-polykube-operator:dev}\""
+
+[tasks."local:operator:deploy"]
+description = "Deploy the operator to local k0s clusters"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+flag "--wait <bool>" help="Wait for operator rollouts" default="true"
+'''
+run = "bash ./examples/local-multicluster/scripts/operator_deploy.sh --clusters \"${usage_clusters:-alpha,beta}\" --image \"${usage_image:-polykube-operator:dev}\" --wait \"${usage_wait:-true}\""
+
+[tasks."local:operator:undeploy"]
+description = "Remove the operator from local k0s clusters"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--crds <bool>" help="Delete CRDs after operator runtime objects" default="true"
+'''
+run = "bash ./examples/local-multicluster/scripts/operator_undeploy.sh --clusters \"${usage_clusters:-alpha,beta}\" --crds \"${usage_crds:-true}\""
+
+[tasks."local:demo:apply"]
+description = "Apply sample demo manifests (ClusterMember, Federation, Workload, ServiceEndpoint) to local clusters"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+'''
+run = "bash ./examples/local-multicluster/scripts/demo_apply.sh --clusters \"${usage_clusters:-alpha,beta}\""

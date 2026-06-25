@@ -1,0 +1,8 @@
+apiVersion: infrastructure.polykube.dev/v1alpha1
+kind: Federation
+metadata:
+  name: local-dev
+spec:
+  memberSelector:
+    matchLabels:
+      env: dev

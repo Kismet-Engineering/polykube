@@ -1,0 +1,9 @@
+apiVersion: routing.polykube.dev/v1alpha1
+kind: ServiceEndpoint
+metadata:
+  name: echo
+  namespace: default
+spec:
+  workloadRef:
+    name: echo
+  routingMode: ActiveActive
