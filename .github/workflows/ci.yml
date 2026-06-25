@@ -29,6 +29,27 @@ jobs:
       - name: Validate repository scaffold
         run: bash scripts/validate-repo.sh
 
+  operator-e2e:
+    name: Operator e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: repository-sanity
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: operator/go.mod
+          cache-dependency-path: operator/go.sum
+
+      - name: Run operator e2e
+        run: bash scripts/e2e.sh
+        env:
+          POLYKUBE_OPERATOR_IMAGE: polykube-operator:e2e
+          E2E_TIMEOUT: "300"
+
   operator-image:
     name: Operator image
     runs-on: ubuntu-latest
