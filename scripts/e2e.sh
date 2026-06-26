@@ -42,7 +42,12 @@ printf '==> loading image into cluster\n'
 bash "${REPO_ROOT}/examples/local-multicluster/scripts/operator_image_load.sh" \
   --clusters "${CLUSTER}" --image "${IMAGE}"
 
-# 4. Deploy CRDs, RBAC, and operator Deployment
+# 4. Wait for the node to be schedulable before deploying
+printf '==> waiting for node Ready\n'
+kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" \
+  wait node --all --for=condition=Ready --timeout=120s
+
+# 5. Deploy CRDs, RBAC, and operator Deployment
 printf '==> deploying operator to %s\n' "${CLUSTER}"
 bash "${REPO_ROOT}/scripts/operator_deploy.sh" \
   --kubeconfig "${KUBECONFIG_PATH}" \
@@ -50,7 +55,7 @@ bash "${REPO_ROOT}/scripts/operator_deploy.sh" \
   --image "${IMAGE}" \
   --cluster-member-name "${CLUSTER}"
 
-# 5. Apply ClusterMember (inline), Federation, and Workload
+# 6. Apply ClusterMember (inline), Federation, and Workload
 printf '==> applying ClusterMember, Federation, Workload\n'
 kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" apply -f - <<MANIFEST
 apiVersion: infrastructure.polykube.dev/v1alpha1
@@ -72,14 +77,14 @@ kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" \
 kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" \
   apply -f "${MANIFESTS_DIR}/workload-echo.yaml"
 
-# 6. Assert ClusterMember reaches Ready=True
+# 7. Assert ClusterMember reaches Ready=True
 printf '==> waiting for ClusterMember/%s Ready (timeout %ss)\n' "${CLUSTER}" "${TIMEOUT}"
 kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" \
   wait "clustermember/${CLUSTER}" \
   --for=condition=Ready \
   --timeout="${TIMEOUT}s"
 
-# 7. Assert Workload has a reconciled target entry
+# 8. Assert Workload has a reconciled target entry
 printf '==> asserting Workload echo has a reconciled target\n'
 state="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" \
   get workload echo -n default \
