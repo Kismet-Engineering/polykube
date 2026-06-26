@@ -71,6 +71,8 @@ Polykube is opinionated about networking. Cilium with ClusterMesh enabled is the
 
 These are not plug-in abstractions. They are what makes the routing model work. Future iterations may support alternative networking backends, but v0 targets this specific stack.
 
+Provider defaults matter. For example, GKE Dataplane V2 is not the same as a self-managed Cilium installation with ClusterMesh enabled, and ClusterMesh still needs a validated underlay route to every remote pod CIDR. See `networking-caveats.md` for the AWS/GCP caveats and validation matrix learned from live cross-cloud testing.
+
 ### Secrets model
 
 **What polykube does.** All secret references — `Workload.spec.imagePullSecrets`, `Workload.spec.envFrom[].secretRef`, and `DatastoreBinding.spec.connectionRef` — are local, namespace-scoped Kubernetes `Secret` names. The operator dereferences those names only: it looks up the `Secret` in the local cluster and uses it to configure the runtime objects it manages. It does not create, replicate, or manage the contents of secrets. If a referenced secret exists locally, reconciliation proceeds; if it does not, the affected resource enters `Degraded` state with reason `SecretNotFound` (Workload) or `ConnectionSecretNotFound` (DatastoreBinding) and is requeued until the secret appears.

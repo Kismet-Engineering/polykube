@@ -12,6 +12,10 @@ Once the clusters exist:
 2. If the clusters can't reach each other's pod CIDRs over the public internet or a VPC peering connection, install Netmaker on a host reachable by both clusters and enroll each cluster's nodes as peers. Netmaker establishes a WireGuard overlay so cross-cluster pod traffic has a routable path.
 3. Connect Cilium ClusterMesh across the two clusters so Cilium global services work.
 
+GKE note: if the GCP member is GKE and you need self-managed Cilium ClusterMesh, create it with the legacy datapath rather than GKE Dataplane V2. Dataplane V2 is Google's managed Cilium variant and does not provide the same self-managed ClusterMesh control surface.
+
+Before proceeding, run the validation matrix in `../../docs/networking-caveats.md`. Direct pod-IP checks and Cilium global-service checks must both pass in both directions; they prove different parts of the networking stack.
+
 At the end of this step you should have:
 - Two clusters with reachable Kubernetes API endpoints
 - Cross-cluster pod routing working (verify with a connectivity test)

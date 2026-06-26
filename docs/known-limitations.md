@@ -21,6 +21,7 @@ Polykube is an experimental alpha. It is not production-ready.
 - OpenTofu code currently emits Polykube manifests from caller-provided cluster outputs.
 - The repository does not create cloud networks, managed clusters, IAM, DNS, certificates, or container registries.
 - AWS/GCP wiring is an example path, not a required product assumption.
+- Provider CNI defaults are not abstracted away. In particular, GKE clusters intended for self-managed Cilium ClusterMesh should be created without Dataplane V2, and underlay route advertisement must be validated independently. See `networking-caveats.md`.
 
 ## GitOps
 
@@ -32,6 +33,7 @@ Polykube is an experimental alpha. It is not production-ready.
 
 - Progressive rollout, canary, blue/green, and promotion workflows are expected to come from dedicated rollout controllers.
 - Production-grade global traffic automation is out of scope for public alpha.
+- Direct pod-IP reachability and Cilium global-service translation are separate readiness gates; do not treat one as proof of the other.
 - Datastore replication is represented as intent only; no datastore operator integration is implemented.
 
 ## Security

@@ -33,6 +33,8 @@ Before running these modules, you need:
 - Netmaker (or equivalent) configured if clusters don't share a network
 - Cluster API endpoints, pod CIDRs, and service CIDRs available as inputs
 
+For AWS/GCP environments, read `../../docs/networking-caveats.md` before treating these prerequisites as satisfied. Provider CNI defaults, GKE datapath selection, underlay route drift, and Cilium global-service validation can all affect whether the generated manifests will work in practice.
+
 ## Layout
 
 - `modules/polykube-manifests`: provider-neutral module that accepts cluster outputs and renders `ClusterMember` and `Federation` YAML.
