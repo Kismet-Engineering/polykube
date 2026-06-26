@@ -33,8 +33,11 @@ bash "${REPO_ROOT}/examples/local-multicluster/scripts/cluster_create.sh" \
 KUBECONFIG_PATH="$(cluster_kubeconfig_for "${CLUSTER}")"
 CONTEXT="$(cluster_context_for "${CLUSTER}")"
 
-# 2. Image
+# 2. Build image while waiting for node to reach Ready in parallel
 printf '==> building operator image: %s\n' "${IMAGE}"
+kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" \
+  wait node --all --for=condition=Ready --timeout=300s &
+NODE_WAIT_PID=$!
 docker build -t "${IMAGE}" -f "${REPO_ROOT}/operator/Dockerfile" "${REPO_ROOT}"
 
 # 3. Load image into cluster
@@ -42,10 +45,9 @@ printf '==> loading image into cluster\n'
 bash "${REPO_ROOT}/examples/local-multicluster/scripts/operator_image_load.sh" \
   --clusters "${CLUSTER}" --image "${IMAGE}"
 
-# 4. Wait for the node to be schedulable before deploying
-printf '==> waiting for node Ready\n'
-kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" \
-  wait node --all --for=condition=Ready --timeout=120s
+# 4. Confirm node is Ready before deploying
+printf '==> confirming node Ready\n'
+wait "${NODE_WAIT_PID}"
 
 # 5. Deploy CRDs, RBAC, and operator Deployment
 printf '==> deploying operator to %s\n' "${CLUSTER}"
