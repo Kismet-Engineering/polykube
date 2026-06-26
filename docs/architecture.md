@@ -33,6 +33,8 @@ flowchart LR
 
 Bootstrap tooling (OpenTofu or your own scripts) produces reviewable Kubernetes manifests. Flux or another GitOps tool delivers those manifests to each cluster. From there, the Polykube operator in each cluster reconciles only its local slice of desired state — there is no central process that holds credentials for all clusters.
 
+The same Polykube resources can be delivered to every member cluster. Each operator is started with the name of the local `ClusterMember`, then ignores work meant for other members. It does not open connections to remote Kubernetes APIs, queue work for other clusters, or need kubeconfigs for the rest of the federation.
+
 ## Control Model
 
 The operator is the primary control plane. Desired state lives in Kubernetes resources and is reconcilable through GitOps.

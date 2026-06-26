@@ -24,6 +24,16 @@ Step 4 — Flux delivers to clusters (see gitops/)
 
 The modules here handle Step 2 only. They do not create clusters, networks, IAM roles, DNS records, or certificates.
 
+If you extend these examples into full cloud provisioning, keep infrastructure state separated by federation, member cluster, environment, and stack. Avoid putting every provider, cluster, and lifecycle step under one shared state prefix. Smaller state boundaries make expansion, rollback, and cleanup safer.
+
+A practical split is:
+
+- one state area per federation or environment
+- one member key per cluster, for example `aws-us-west-2-dev` or `gcp-us-central1-dev`
+- separate stacks for network, cluster, addons, and manifest generation
+
+When changing state layout, use a copy, validate, cut over, and rollback plan. Do not move state as a side effect of unrelated manifest-generation changes.
+
 ## Prerequisites for Step 2
 
 Before running these modules, you need:

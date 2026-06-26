@@ -30,6 +30,8 @@ Progressive rollout mechanics are not part of the core v0 API. Polykube reconcil
 
 Scope: cluster-scoped.
 
+The resource name is the member's stable identity. It should not be only the provider name. A federation can contain multiple AWS clusters, multiple GCP clusters, or multiple regions for the same provider, so names and labels should include enough context to stay unique and readable, for example `aws-us-west-2-dev` or `gcp-us-central1-dev`.
+
 Spec fields:
 
 - `provider`: provider identifier such as `aws`, `gcp`, `azure`, `kind`, or `other`.
@@ -41,6 +43,14 @@ Spec fields:
 - `podCIDR`: optional pod CIDR for diagnostics and generated examples.
 - `serviceCIDR`: optional service CIDR for diagnostics and generated examples.
 - `labels`: freeform selection metadata.
+
+Field rules:
+
+- `provider` is descriptive metadata, not identity.
+- `region` and `zone` are separate fields. Set `zone` only when the cluster is tied to a specific zone.
+- `apiEndpoint`, when set, should include the URL scheme, for example `https://...`.
+- `podCIDR` and `serviceCIDR` are for diagnostics and examples. They do not replace real network configuration.
+- Labels should be stable enough for `Federation.spec.memberSelector`, for example `environment`, `provider`, `region`, and `federation`.
 
 Status fields:
 
