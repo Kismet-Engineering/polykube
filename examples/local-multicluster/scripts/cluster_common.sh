@@ -11,6 +11,7 @@ cluster_setup_paths() {
   CLUSTER_CONFIG_DIR="${STATE_DIR}/cluster-configs"
   CLUSTER_CONTEXT_PREFIX="${CLUSTER_CONTEXT_PREFIX:-polykube}"
   K0S_IMAGE="${K0S_IMAGE:-docker.io/k0sproject/k0s:v1.35.2-k0s.0}"
+  K0S_NETWORK_PROVIDER="${K0S_NETWORK_PROVIDER:-custom}"
 }
 
 require_cmd() {
@@ -135,7 +136,7 @@ spec:
       - 127.0.0.1
       - localhost
   network:
-    provider: custom
+    provider: ${K0S_NETWORK_PROVIDER}
     podCIDR: $(cluster_pod_cidr_for "${cluster}")
     serviceCIDR: $(cluster_service_cidr_for "${cluster}")
   telemetry:

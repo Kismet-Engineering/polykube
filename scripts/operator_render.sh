@@ -40,6 +40,9 @@ kind: Kustomization
 resources:
   - ../../gitops/components/operator
 images:
+  - name: ghcr.io/kismet-engineering/polykube-operator
+    newName: ${image_name}
+    newTag: ${image_tag}
   - name: polykube-operator
     newName: ${image_name}
     newTag: ${image_tag}

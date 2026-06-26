@@ -17,18 +17,37 @@ CLUSTER="e2e"
 IMAGE="${POLYKUBE_OPERATOR_IMAGE:-polykube-operator:e2e}"
 MANIFESTS_DIR="${REPO_ROOT}/examples/local-multicluster/manifests"
 TIMEOUT="${E2E_TIMEOUT:-300}"
+KUBECONFIG_PATH=""
+CONTEXT=""
+
+diagnostics() {
+  [[ -n "${KUBECONFIG_PATH}" && -n "${CONTEXT}" ]] || return 0
+
+  printf '==> e2e diagnostics\n' >&2
+  kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" get nodes -o wide >&2 || true
+  kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" describe nodes >&2 || true
+  kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" get pods -A -o wide >&2 || true
+  kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" describe pods -A >&2 || true
+  kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" get events -A --sort-by=.lastTimestamp >&2 || true
+  kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" -n polykube-system logs deployment/polykube-operator --all-containers --tail=200 >&2 || true
+}
 
 cleanup() {
+  status=$?
+  if [[ "${status}" -ne 0 ]]; then
+    diagnostics
+  fi
   printf '==> cleaning up cluster %s\n' "${CLUSTER}"
   bash "${REPO_ROOT}/examples/local-multicluster/scripts/cluster_delete.sh" \
     --clusters "${CLUSTER}" 2>/dev/null || true
+  exit "${status}"
 }
 trap cleanup EXIT
 
 # 1. Cluster
 printf '==> creating k0s cluster: %s\n' "${CLUSTER}"
 bash "${REPO_ROOT}/examples/local-multicluster/scripts/cluster_create.sh" \
-  --clusters "${CLUSTER}" --workers 0
+  --clusters "${CLUSTER}" --workers 0 --network-provider kuberouter
 
 KUBECONFIG_PATH="$(cluster_kubeconfig_for "${CLUSTER}")"
 CONTEXT="$(cluster_context_for "${CLUSTER}")"
@@ -36,7 +55,7 @@ CONTEXT="$(cluster_context_for "${CLUSTER}")"
 # 2. Build image while waiting for node to reach Ready in parallel
 printf '==> building operator image: %s\n' "${IMAGE}"
 kubectl --kubeconfig "${KUBECONFIG_PATH}" --context "${CONTEXT}" \
-  wait node --all --for=condition=Ready --timeout=300s &
+  wait node --all --for=condition=Ready --timeout="${TIMEOUT}s" &
 NODE_WAIT_PID=$!
 docker build -t "${IMAGE}" -f "${REPO_ROOT}/operator/Dockerfile" "${REPO_ROOT}"
 

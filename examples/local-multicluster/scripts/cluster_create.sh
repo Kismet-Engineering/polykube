@@ -14,6 +14,7 @@ while [[ $# -gt 0 ]]; do
     --clusters) usage_clusters="$2"; shift 2 ;;
     --workers) usage_workers="$2"; shift 2 ;;
     --image) usage_image="$2"; shift 2 ;;
+    --network-provider) usage_network_provider="$2"; shift 2 ;;
     --recreate) usage_recreate="$2"; shift 2 ;;
     *) shift ;;
   esac
@@ -22,6 +23,7 @@ done
 CLUSTERS="${usage_clusters:-alpha,beta}"
 WORKERS="${usage_workers:-0}"
 K0S_IMAGE="${usage_image:-${K0S_IMAGE}}"
+K0S_NETWORK_PROVIDER="${usage_network_provider:-${K0S_NETWORK_PROVIDER}}"
 RECREATE="${usage_recreate:-false}"
 
 if ! [[ "${WORKERS}" =~ ^[0-9]+$ ]]; then

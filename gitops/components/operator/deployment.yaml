@@ -19,6 +19,13 @@ spec:
         app.kubernetes.io/part-of: polykube
     spec:
       serviceAccountName: polykube-operator
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
       securityContext:
         runAsNonRoot: true
         seccompProfile:
