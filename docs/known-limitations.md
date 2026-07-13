@@ -4,16 +4,19 @@ Polykube is an experimental alpha. It is not production-ready.
 
 ## Operator
 
-- The `Workload` controller currently reconciles local `Deployment` and `Service` objects only.
+- All five alpha controllers are implemented and registered: `ClusterMember`, `Federation`, `Workload`, `ServiceEndpoint`, and `DatastoreBinding`.
+- The `Workload` controller reconciles local `Deployment` and `Service` objects only.
 - `Workload.status.targets[]` reports local-cluster state; cross-cluster aggregation is not implemented.
-- The operator does not yet reconcile `ClusterMember`, `Federation`, `ServiceEndpoint`, or `DatastoreBinding` resources.
+- `ClusterMember` and `Federation` reconcile identity, membership, and readiness status; they do not configure cloud infrastructure or networking.
+- `ServiceEndpoint` applies Cilium global-service annotations to the generated `Service`; Gateway API fields are accepted but not acted on yet.
+- `DatastoreBinding` injects connection env vars into the generated `Deployment`; it does not provision databases, configure replication, or enforce `conflictPolicy`.
 - Runtime health is inferred from `DeploymentAvailable`; richer workload probes and failure reasons are follow-up work.
 - CRD manifests are hand-written alpha bases; generated CRD and deepcopy workflows are follow-up work.
 
 ## Local Multicluster Demo
 
-- The local demo validates k0s cluster lifecycle, Cilium/ClusterMesh bootstrap, and global-service routing probes.
-- The local demo does not yet install the Polykube operator end-to-end across all members.
+- The local demo validates k0s cluster lifecycle, Cilium/ClusterMesh bootstrap, operator deployment, sample Workload reconciliation, ServiceEndpoint annotations, and global-service routing probes.
+- The local demo is not yet a fully automated clean-machine release gate; evidence capture remains manual.
 - The local demo assumes a Docker-compatible runtime and `mise` tasks.
 
 ## Cloud Bootstrap
@@ -34,7 +37,7 @@ Polykube is an experimental alpha. It is not production-ready.
 - Progressive rollout, canary, blue/green, and promotion workflows are expected to come from dedicated rollout controllers.
 - Production-grade global traffic automation is out of scope for public alpha.
 - Direct pod-IP reachability and Cilium global-service translation are separate readiness gates; do not treat one as proof of the other.
-- Datastore replication is represented as intent only; no datastore operator integration is implemented.
+- Datastore replication is represented as intent only; no datastore operator integration, database provisioning, replication setup, or conflict-policy enforcement is implemented.
 
 ## Security
 

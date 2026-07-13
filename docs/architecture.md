@@ -95,7 +95,17 @@ Deployment has correct env vars / pull credentials
 
 Other viable approaches: Sealed Secrets (encrypted CRs committed to GitOps), Vault Agent Injector, CSI secret store driver. The mechanism does not matter to polykube — what matters is that the `Secret` object exists in the namespace before or shortly after the `Workload` is applied.
 
-`DatastoreBinding` injects connection env vars into the `Deployment` generated for a `Workload`: `DATASTORE_<NAME>_URL`, `DATASTORE_<NAME>_REPLICATION_MODE`, and `DATABASE_URL` for a binding named `primary`. These binding-managed env vars intentionally take precedence over same-name entries in `Workload.spec.env`. For example, if a `Workload` defines `DATABASE_URL` and a `DatastoreBinding` named `primary` is reconciled, the `DatastoreBinding` value wins because the binding represents the selected local connection secret.
+### DatastoreBinding env vars
+
+`DatastoreBinding` injects connection env vars into the `Deployment` generated for a `Workload`:
+
+- `DATASTORE_<NAME>_URL`: canonical Polykube binding-specific connection URL, generated for every binding. The binding name is uppercased and hyphens are converted to underscores, so a binding named `analytics-db` produces `DATASTORE_ANALYTICS_DB_URL`.
+- `DATASTORE_<NAME>_REPLICATION_MODE`: binding-specific replication intent, generated for every binding from `DatastoreBinding.spec.replicationMode`.
+- `DATABASE_URL`: compatibility alias generated only when the binding name is exactly `primary`. This supports applications and frameworks that expect a single default database URL.
+
+Apps that consume multiple datastores should prefer the binding-specific `DATASTORE_<NAME>_URL` variables. Apps that only need one default database can name the binding `primary` and continue using `DATABASE_URL`.
+
+The connection `Secret` should store the URL under `url`; the operator falls back to `DATABASE_URL` for compatibility with existing secret conventions. Binding-managed env vars intentionally take precedence over same-name entries in `Workload.spec.env`. For example, if a `Workload` defines `DATABASE_URL` and a `DatastoreBinding` named `primary` is reconciled, the `DatastoreBinding` value wins because the binding represents the selected local connection secret.
 
 ## Bootstrap Model
 
