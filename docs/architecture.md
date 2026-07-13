@@ -95,6 +95,8 @@ Deployment has correct env vars / pull credentials
 
 Other viable approaches: Sealed Secrets (encrypted CRs committed to GitOps), Vault Agent Injector, CSI secret store driver. The mechanism does not matter to polykube — what matters is that the `Secret` object exists in the namespace before or shortly after the `Workload` is applied.
 
+`DatastoreBinding` injects connection env vars into the `Deployment` generated for a `Workload`: `DATASTORE_<NAME>_URL`, `DATASTORE_<NAME>_REPLICATION_MODE`, and `DATABASE_URL` for a binding named `primary`. These binding-managed env vars intentionally take precedence over same-name entries in `Workload.spec.env`. For example, if a `Workload` defines `DATABASE_URL` and a `DatastoreBinding` named `primary` is reconciled, the `DatastoreBinding` value wins because the binding represents the selected local connection secret.
+
 ## Bootstrap Model
 
 Infrastructure bootstrap tools should produce deterministic, reviewable artifacts before anything is applied to clusters.

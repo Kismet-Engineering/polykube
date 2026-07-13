@@ -259,6 +259,62 @@ func TestDatastoreBindingDeleteRemovesEnvVars(t *testing.T) {
 	}
 }
 
+func TestDatastoreBindingEnvVarsSurviveWorkloadReconcile(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	binding, workload, _, secret := makeDatastoreFixtures("primary", "yugabytedb", dataapi.DatastoreReplicationModeActiveActive)
+	client := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(binding, workload, secret).
+		WithStatusSubresource(binding, workload).
+		Build()
+
+	workloadReconciler := &WorkloadReconciler{
+		Client: client,
+		Scheme: scheme,
+	}
+	datastoreReconciler := &DatastoreBindingReconciler{
+		Client: client,
+		Scheme: scheme,
+	}
+
+	if _, err := workloadReconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}); err != nil {
+		t.Fatalf("Workload Reconcile() initial error = %v", err)
+	}
+
+	reconcileDatastoreBinding(t, datastoreReconciler, "demo", "primary")
+
+	var afterBinding appsv1.Deployment
+	if err := client.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &afterBinding); err != nil {
+		t.Fatalf("Get Deployment after DatastoreBinding reconcile error = %v", err)
+	}
+	if !hasEnvVar(afterBinding.Spec.Template.Spec.Containers[0].Env, "DATASTORE_PRIMARY_URL") {
+		t.Fatalf("DATASTORE_PRIMARY_URL not injected before Workload reconcile; env = %v", afterBinding.Spec.Template.Spec.Containers[0].Env)
+	}
+
+	if _, err := workloadReconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}); err != nil {
+		t.Fatalf("Workload Reconcile() after DatastoreBinding error = %v", err)
+	}
+
+	var afterWorkload appsv1.Deployment
+	if err := client.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &afterWorkload); err != nil {
+		t.Fatalf("Get Deployment after Workload reconcile error = %v", err)
+	}
+	env := afterWorkload.Spec.Template.Spec.Containers[0].Env
+	if !hasEnvVar(env, "DATASTORE_PRIMARY_URL") {
+		t.Fatalf("DATASTORE_PRIMARY_URL was removed by Workload reconcile; env = %v", env)
+	}
+	if !hasEnvVar(env, "DATASTORE_PRIMARY_REPLICATION_MODE") {
+		t.Fatalf("DATASTORE_PRIMARY_REPLICATION_MODE was removed by Workload reconcile; env = %v", env)
+	}
+	if !hasEnvVar(env, "DATABASE_URL") {
+		t.Fatalf("DATABASE_URL was removed by Workload reconcile; env = %v", env)
+	}
+}
+
 func hasEnvVar(env []corev1.EnvVar, name string) bool {
 	for _, e := range env {
 		if e.Name == name {

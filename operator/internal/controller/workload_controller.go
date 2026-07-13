@@ -292,11 +292,16 @@ func (r *WorkloadReconciler) reconcileDeployment(ctx context.Context, workload *
 		deployment.Spec.Template.Labels = labels
 		deployment.Spec.Template.Spec.ServiceAccountName = workload.Spec.ServiceAccountName
 		deployment.Spec.Template.Spec.ImagePullSecrets = imagePullSecrets(workload.Spec.ImagePullSecrets)
+		env := envVars(workload.Spec.Env)
+		if len(deployment.Spec.Template.Spec.Containers) > 0 {
+			env = preserveDatastoreManagedEnvVars(env, deployment.Spec.Template.Spec.Containers[0].Env, datastoreManagedEnvVars(deployment))
+		}
+
 		deployment.Spec.Template.Spec.Containers = []corev1.Container{{
 			Name:    "app",
 			Image:   workload.Spec.Image,
 			Ports:   containerPorts(workload.Spec.Ports),
-			Env:     envVars(workload.Spec.Env),
+			Env:     env,
 			EnvFrom: envFromSources(workload.Spec.EnvFrom),
 		}}
 		return nil
@@ -478,6 +483,19 @@ func envVars(vars []runtimeapi.EnvVar) []corev1.EnvVar {
 		env = append(env, corev1.EnvVar{Name: variable.Name, Value: variable.Value})
 	}
 	return env
+}
+
+func preserveDatastoreManagedEnvVars(desired, existing []corev1.EnvVar, managed map[string]bool) []corev1.EnvVar {
+	if len(managed) == 0 {
+		return desired
+	}
+	preserved := make([]corev1.EnvVar, 0, len(managed))
+	for _, variable := range existing {
+		if managed[variable.Name] {
+			preserved = append(preserved, variable)
+		}
+	}
+	return mergeEnvVars(desired, preserved)
 }
 
 func envFromSources(sources []runtimeapi.EnvFromSource) []corev1.EnvFromSource {

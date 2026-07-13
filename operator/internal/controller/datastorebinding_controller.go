@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	dataapi "github.com/Kismet-Engineering/polykube/operator/api/data/v1alpha1"
@@ -20,7 +21,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const datastoreBindingFinalizer = "datastorebinding.data.polykube.dev/finalizer"
+const (
+	datastoreBindingFinalizer         = "datastorebinding.data.polykube.dev/finalizer"
+	datastoreManagedEnvVarsAnnotation = "data.polykube.dev/managed-env-vars"
+)
 
 var acceptedEngines = []string{"yugabytedb", "postgres_compatible", "postgres"}
 
@@ -134,6 +138,7 @@ func (r *DatastoreBindingReconciler) injectEnvVars(ctx context.Context, binding 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, &deployment, func() error {
 		nameUpper := strings.ToUpper(strings.ReplaceAll(binding.Name, "-", "_"))
 		secretKey := connectionSecretKey(secret)
+		managedEnvNames := datastoreManagedEnvNames(binding)
 
 		envVarsToInject := []corev1.EnvVar{
 			{
@@ -171,6 +176,7 @@ func (r *DatastoreBindingReconciler) injectEnvVars(ctx context.Context, binding 
 				break
 			}
 		}
+		updateDatastoreManagedEnvVars(&deployment, managedEnvNames, nil)
 		return nil
 	})
 	return err
@@ -189,14 +195,8 @@ func (r *DatastoreBindingReconciler) reconcileBindingDelete(ctx context.Context,
 		var deployment appsv1.Deployment
 		if err := r.Get(ctx, client.ObjectKey{Namespace: workload.Namespace, Name: workload.Name}, &deployment); err == nil {
 			_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &deployment, func() error {
-				nameUpper := strings.ToUpper(strings.ReplaceAll(binding.Name, "-", "_"))
-				keysToRemove := map[string]bool{
-					"DATASTORE_" + nameUpper + "_URL":              true,
-					"DATASTORE_" + nameUpper + "_REPLICATION_MODE": true,
-				}
-				if binding.Name == "primary" {
-					keysToRemove["DATABASE_URL"] = true
-				}
+				managedEnvNames := datastoreManagedEnvNames(binding)
+				keysToRemove := namesToBoolMap(managedEnvNames)
 				for i := range deployment.Spec.Template.Spec.Containers {
 					if deployment.Spec.Template.Spec.Containers[i].Name == "app" {
 						deployment.Spec.Template.Spec.Containers[i].Env = removeEnvVars(
@@ -206,6 +206,7 @@ func (r *DatastoreBindingReconciler) reconcileBindingDelete(ctx context.Context,
 						break
 					}
 				}
+				updateDatastoreManagedEnvVars(&deployment, nil, managedEnvNames)
 				return nil
 			})
 			if err != nil {
@@ -288,6 +289,64 @@ func connectionSecretKey(secret *corev1.Secret) string {
 		return "url"
 	}
 	return "DATABASE_URL"
+}
+
+func datastoreManagedEnvNames(binding *dataapi.DatastoreBinding) []string {
+	nameUpper := strings.ToUpper(strings.ReplaceAll(binding.Name, "-", "_"))
+	names := []string{
+		"DATASTORE_" + nameUpper + "_URL",
+		"DATASTORE_" + nameUpper + "_REPLICATION_MODE",
+	}
+	if binding.Name == "primary" {
+		names = append(names, "DATABASE_URL")
+	}
+	return names
+}
+
+func namesToBoolMap(names []string) map[string]bool {
+	result := make(map[string]bool, len(names))
+	for _, name := range names {
+		result[name] = true
+	}
+	return result
+}
+
+func updateDatastoreManagedEnvVars(deployment *appsv1.Deployment, addNames, removeNames []string) {
+	managed := datastoreManagedEnvVars(deployment)
+	for _, name := range removeNames {
+		delete(managed, name)
+	}
+	for _, name := range addNames {
+		managed[name] = true
+	}
+
+	if len(managed) == 0 {
+		delete(deployment.Annotations, datastoreManagedEnvVarsAnnotation)
+		return
+	}
+	if deployment.Annotations == nil {
+		deployment.Annotations = map[string]string{}
+	}
+	names := make([]string, 0, len(managed))
+	for name := range managed {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	deployment.Annotations[datastoreManagedEnvVarsAnnotation] = strings.Join(names, ",")
+}
+
+func datastoreManagedEnvVars(deployment *appsv1.Deployment) map[string]bool {
+	managed := map[string]bool{}
+	if deployment.Annotations == nil {
+		return managed
+	}
+	for _, name := range strings.Split(deployment.Annotations[datastoreManagedEnvVarsAnnotation], ",") {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			managed[name] = true
+		}
+	}
+	return managed
 }
 
 // mergeEnvVars merges toInject into existing, replacing by name where present.
