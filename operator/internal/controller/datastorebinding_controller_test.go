@@ -260,8 +260,6 @@ func TestDatastoreBindingDeleteRemovesEnvVars(t *testing.T) {
 }
 
 func TestDatastoreBindingEnvVarsSurviveWorkloadReconcile(t *testing.T) {
-	t.Skip("documents issue #31; enable when Workload preserves DatastoreBinding-managed env vars")
-
 	scheme, err := polykubescheme.New()
 	if err != nil {
 		t.Fatalf("scheme.New() error = %v", err)
