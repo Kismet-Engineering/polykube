@@ -17,7 +17,7 @@ This guide walks through two things: validating the repository, and running the 
 bash scripts/validate-repo.sh
 ```
 
-This checks repository sanitization, shell syntax, Go formatting, Go tests, required release files, optional CRD dry-run, optional OpenTofu formatting, and optional GitOps kustomization rendering depending on installed tools.
+This checks repository scaffold, whitespace, shell syntax, Go formatting, required release files, optional CRD dry-run, optional OpenTofu formatting, and optional GitOps kustomization rendering depending on installed tools. Run `mise run operator:test` or `cd operator && go test ./...` for the full operator unit test suite.
 
 ## Run The Local Demo
 
@@ -30,7 +30,9 @@ flowchart LR
     Preflight --> Install[Install Cilium]
     Install --> Mesh[Enable and connect ClusterMesh]
     Mesh --> Verify[Verify cross-cluster connectivity]
-    Verify --> Probe[Probe global-service routing]
+    Verify --> Operator[Deploy Polykube operator]
+    Operator --> Demo[Apply sample Workload]
+    Demo --> Probe[Probe global-service routing]
 ```
 
 Create two local clusters:
@@ -80,6 +82,12 @@ mise run local:operator:image:load -- --clusters alpha,beta --image polykube-ope
 mise run local:operator:deploy -- --clusters alpha,beta --image polykube-operator:dev
 ```
 
+Apply the sample `ClusterMember`, `Federation`, `Workload`, and `ServiceEndpoint` manifests to both clusters:
+
+```bash
+mise run local:demo:apply
+```
+
 If OpenTofu is installed, check formatting for the manifest generation module:
 
 ```bash
@@ -92,6 +100,6 @@ Polykube does not replicate secrets across clusters. Any `Secret` referenced in 
 
 ## Current Boundary
 
-The local demo validates cluster lifecycle, Cilium ClusterMesh, and global-service routing. Operator-backed workload installation across all local members is still tracked as a known limitation in `docs/known-limitations.md`.
+The local demo validates cluster lifecycle, Cilium ClusterMesh, operator deployment, sample Workload reconciliation, ServiceEndpoint Cilium annotations, and global-service routing. Known limitations are tracked in `docs/known-limitations.md`.
 
 Operator image publishing and tag conventions are documented in `docs/release/operator-images.md`.

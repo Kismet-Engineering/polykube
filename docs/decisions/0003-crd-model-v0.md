@@ -136,7 +136,7 @@ Status fields:
 
 ### DatastoreBinding
 
-`DatastoreBinding` describes optional data dependency and replication intent for examples and future integrations.
+`DatastoreBinding` describes optional data dependency and replication intent for examples and future integrations. In the current alpha controller, it resolves a local connection `Secret` and injects binding-specific env vars into the target Workload's generated `Deployment`; it does not provision databases or configure replication.
 
 Scope: namespaced.
 
@@ -169,7 +169,7 @@ Controllers should prefer condition updates and events over hidden internal stat
 - `ClusterMember` and `Federation` are infrastructure intent.
 - `Workload` owns generated per-member runtime resources such as Deployments, Services, runtime Secrets, and optional HTTPRoutes unless an integration-specific owner is documented.
 - `ServiceEndpoint` owns routing policy resources where Polykube emits them.
-- `DatastoreBinding` is advisory in v0 unless an example integration explicitly reconciles it.
+- `DatastoreBinding` owns the env vars it injects into the target Workload's generated `Deployment`; database provisioning, replication setup, and conflict-policy enforcement remain outside the v0 controller.
 - Controllers must not require credentials for remote member clusters. Each cluster reconciles its local slice of desired state.
 - Progressive delivery systems may own the rollout strategy for generated or referenced runtime workloads. In that case, Polykube should avoid fighting those controllers and should report observed target health rather than duplicating their rollout state machines.
 

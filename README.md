@@ -26,7 +26,7 @@ Polykube is not a SaaS platform, a cloud provisioning framework, a progressive r
 
 ## Current implementation status
 
-Polykube is an experimental public alpha. The `Workload` controller currently reconciles `Deployment` and `Service` resources. Several CRDs define the intended architecture, but `ClusterMember`, `Federation`, `ServiceEndpoint`, and `DatastoreBinding` are not fully reconciled yet.
+Polykube is an experimental public alpha. The operator currently reconciles all five alpha resources: `ClusterMember`, `Federation`, `Workload`, `ServiceEndpoint`, and `DatastoreBinding`. `Workload` creates local `Deployment` and `Service` resources, `ServiceEndpoint` applies Cilium global-service annotations, and `DatastoreBinding` injects connection env vars from local secrets. The alpha boundary is operational depth, not missing controllers: there is no production traffic manager, no database provisioning, no secret replication, and no cross-cluster status aggregation yet.
 
 Known limitations are tracked in [`docs/known-limitations.md`](docs/known-limitations.md), which is the authoritative source for current implementation boundaries.
 
