@@ -7,7 +7,3 @@ resources:
   - cluster-role.yaml
   - cluster-role-binding.yaml
   - deployment.yaml
-images:
-  - name: ghcr.io/kismet-engineering/polykube-operator
-    newName: polykube-operator
-    newTag: dev

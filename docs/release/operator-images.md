@@ -10,11 +10,21 @@ Published images use GitHub Container Registry:
 ghcr.io/kismet-engineering/polykube-operator
 ```
 
-Local development defaults to:
+The reusable GitOps component defaults to a published alpha image for live cloud installs:
+
+```text
+ghcr.io/kismet-engineering/polykube-operator:0.1.0-alpha.1
+```
+
+Use this default only when you intentionally want that alpha release. For a real live-cloud environment, prefer an overlay that pins the exact published tag being promoted.
+
+Local development is separate and defaults to a local image name:
 
 ```text
 polykube-operator:dev
 ```
+
+Do not commit `polykube-operator:dev` into a live cloud GitOps path. Use it only with local render/deploy commands after building and loading the image into the target local cluster runtime.
 
 ## Version Tags
 
@@ -26,10 +36,16 @@ The CI workflow uses this tag scheme:
 
 Examples:
 
-- `v0.1.0` publishes `0.1.0` and `0.1`.
+- `v0.1.0-alpha.1` publishes `0.1.0-alpha.1`.
 - A merge to `main` publishes `edge` and a commit-pinned `sha-<shortsha>` tag.
 
 Use immutable `sha-<shortsha>` tags for reproducible GitOps promotion. Use `edge` only for disposable development environments.
+
+## Runtime Policy
+
+- Live cloud default: `kubectl kustomize gitops/components/operator` renders the release image declared in `gitops/components/operator/deployment.yaml`.
+- Live cloud promotion: use a kustomize image overlay to pin a published `sha-<shortsha>` or semantic release tag.
+- Local development: use `polykube-operator:dev` through `mise run operator:render`, `mise run operator:deploy`, or `mise run local:operator:deploy` after building/loading the image locally.
 
 ## Local Commands
 
@@ -52,7 +68,13 @@ Render manifests for a specific image:
 mise run operator:render -- --image ghcr.io/kismet-engineering/polykube-operator:sha-<shortsha>
 ```
 
-Deploy to the current Kubernetes context:
+Render manifests for local development:
+
+```bash
+mise run operator:render -- --image polykube-operator:dev
+```
+
+Deploy a local development image to the current Kubernetes context:
 
 ```bash
 mise run operator:deploy -- --image polykube-operator:dev

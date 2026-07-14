@@ -245,6 +245,8 @@ Confirm the kustomize output renders cleanly:
 kubectl kustomize gitops/components/operator
 ```
 
+Expected: the default Deployment image is the published alpha image from `gitops/components/operator/deployment.yaml`, not the local development image.
+
 Expected: YAML output with no errors.
 
 ---
@@ -264,7 +266,7 @@ Once all steps above pass, update `docs/release/public-alpha-checklist.md` and p
 1. Check `[ ] Quickstart is validated from a clean machine...`
 2. Push the release tag: `git tag v0.1.0-alpha.1 && git push origin v0.1.0-alpha.1`
 3. CI publishes `ghcr.io/kismet-engineering/polykube-operator:0.1.0-alpha.1`
-4. Update `gitops/components/operator/deployment.yaml` image to the published tag
+4. Confirm `gitops/components/operator/deployment.yaml` points at the published tag
 5. Create the GitHub release using `docs/release/v0.1.0-alpha.1-release-notes.md`
 6. Check `[ ] Public release tag and release notes are reviewed`
 7. Change repository visibility to public

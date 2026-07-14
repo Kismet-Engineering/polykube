@@ -10,7 +10,9 @@ CRD manifests live under `operator/config/crd/bases` and should be applied befor
 
 ## Using with Flux
 
-Point a Flux `Kustomization` at `gitops/components/operator` in your GitOps repository. You will need an image overlay to replace the placeholder tag (`polykube-operator:dev`) with a published release image. See `docs/release/operator-images.md` for tag conventions.
+Point a Flux `Kustomization` at `gitops/components/operator` in your GitOps repository. The component defaults to the published alpha image declared in `deployment.yaml`, which is intended for live cloud GitOps installs and manual live-cloud applies.
+
+For reproducible promotion, use an overlay that pins the exact published tag you want to run. See `docs/release/operator-images.md` for tag conventions.
 
 A minimal overlay `kustomization.yaml`:
 
@@ -20,8 +22,15 @@ kind: Kustomization
 resources:
   - github.com/Kismet-Engineering/polykube/gitops/components/operator
 images:
-  - name: polykube-operator
-    newTag: v0.1.0  # replace with your target release tag
+  - name: ghcr.io/kismet-engineering/polykube-operator
+    newTag: sha-<shortsha>  # replace with your promoted image tag
+```
+
+Local development is separate from the live-cloud GitOps path. Build and deploy a local image with the local scripts instead of committing `polykube-operator:dev` to a GitOps repository:
+
+```bash
+mise run operator:image:build -- --image polykube-operator:dev
+mise run operator:render -- --image polykube-operator:dev
 ```
 
 ## Manual apply

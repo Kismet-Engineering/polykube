@@ -28,8 +28,9 @@ Polykube is an experimental alpha. It is not production-ready.
 
 ## GitOps
 
-- The GitOps operator component uses the placeholder image `polykube-operator:dev`.
-- Consumers must provide their own release image and overlay before cluster installation.
+- The GitOps operator component defaults to the published alpha operator image for live-cloud installs.
+- Live-cloud consumers should pin a reviewed published image tag in an overlay before promotion.
+- Local demos use the separate `polykube-operator:dev` image path and local deployment scripts.
 - CRDs must be applied before the operator component.
 
 ## Routing And Data
