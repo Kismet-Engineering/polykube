@@ -59,6 +59,40 @@ while IFS= read -r script_path; do
   bash -n "${script_path}"
 done < <(git ls-files '*.sh')
 
+sanitize_patterns=(
+  'AKIA[0-9A-Z]{16}'
+  'ASIA[0-9A-Z]{16}'
+  'AIza[0-9A-Za-z_-]{35}'
+  'gh[pousr]_[0-9A-Za-z_]{20,}'
+  'github_pat_[0-9A-Za-z_]{20,}'
+  'xox[baprs]-[0-9A-Za-z-]{10,}'
+  '-----BEGIN (RSA |DSA |EC |OPENSSH |PGP )?PRIVATE KEY-----'
+  '"private_key"[[:space:]]*:[[:space:]]*"-----BEGIN PRIVATE KEY-----'
+  '"private_key_id"[[:space:]]*:[[:space:]]*"[0-9A-Fa-f]{32,}"'
+  '"client_email"[[:space:]]*:[[:space:]]*"[^"]+\.iam\.gserviceaccount\.com"'
+  'git@(github|gitlab|bitbucket)\.com:[^[:space:]]*(private|internal|legacy)[^[:space:]]*'
+  'https://(github|gitlab|bitbucket)\.com/[^[:space:]]*(private|internal|legacy)[^[:space:]]*'
+)
+
+for pattern in "${sanitize_patterns[@]}"; do
+  set +e
+  grep_output="$(git grep -n -I -E -e "${pattern}" -- . ':!scripts/validate-repo.sh' 2>&1)"
+  grep_status="$?"
+  set -e
+
+  if [[ "${grep_status}" -eq 0 ]]; then
+    printf '%s\n' "${grep_output}"
+    printf 'sanitization pattern matched: %s\n' "${pattern}" >&2
+    exit 1
+  fi
+
+  if [[ "${grep_status}" -ne 1 ]]; then
+    printf 'sanitization scan failed for pattern: %s\n' "${pattern}" >&2
+    printf '%s\n' "${grep_output}" >&2
+    exit 1
+  fi
+done
+
 if [[ -f operator/go.mod ]]; then
   if ! command -v go >/dev/null 2>&1; then
     printf 'missing required command: go\n' >&2
@@ -70,6 +104,8 @@ if [[ -f operator/go.mod ]]; then
     printf 'gofmt required for:\n%s\n' "${gofmt_output}" >&2
     exit 1
   fi
+
+  (cd operator && go test ./...)
 fi
 
 if command -v tofu >/dev/null 2>&1; then

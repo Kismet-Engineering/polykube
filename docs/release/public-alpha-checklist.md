@@ -5,8 +5,8 @@ This checklist must be complete before changing the repository from private to p
 ## Required Gate
 
 - [x] Project identity uses Polykube naming, `polykube.dev` API groups, and `polykube-system` namespace.
-- [x] Legacy branding and private domain scan is enforced by `scripts/validate-repo.sh`.
-- [x] Secret and credential scan is enforced by `scripts/validate-repo.sh` for known private credential patterns.
+- [x] Legacy/private reference scan is enforced by `scripts/validate-repo.sh` for known high-confidence patterns.
+- [x] Secret and credential scan is enforced by `scripts/validate-repo.sh` for known high-confidence credential patterns.
 - [x] Repository includes `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, and `CODE_OF_CONDUCT.md`.
 - [x] Third-party dependencies are reviewed through Go module metadata and remain source-only for alpha.
 - [x] Known limitations are documented in `docs/known-limitations.md`.
@@ -26,7 +26,8 @@ bash scripts/validate-repo.sh
 The validator checks:
 
 - required public docs and scaffold files exist
-- legacy/private project references are absent
+- high-confidence legacy/private reference patterns are absent
+- high-confidence credential patterns are absent
 - trailing whitespace is absent from docs, YAML, and shell scripts
 - shell scripts parse with `bash -n`
 - Go code is formatted and `go test ./...` passes under `operator/`

@@ -17,7 +17,7 @@ This guide walks through two things: validating the repository, and running the 
 bash scripts/validate-repo.sh
 ```
 
-This checks repository scaffold, whitespace, shell syntax, Go formatting, required release files, optional CRD dry-run, optional OpenTofu formatting, and optional GitOps kustomization rendering depending on installed tools. Run `mise run operator:test` or `cd operator && go test ./...` for the full operator unit test suite.
+This is the static/unit repository gate. It checks repository scaffold, high-confidence sanitization patterns, whitespace, shell syntax, Go formatting, the full operator unit test suite, required release files, optional CRD dry-run, optional OpenTofu formatting, and optional GitOps kustomization rendering depending on installed tools.
 
 ## Run The Local Demo
 
