@@ -50,19 +50,23 @@ spec:
               gatewayRef:
                 properties:
                   name:
+                    minLength: 1
                     type: string
                   namespace:
                     type: string
                   section:
+                    minLength: 1
                     type: string
                 required:
                 - name
                 type: object
               hostnames:
                 items:
+                  minLength: 1
                   type: string
                 type: array
               primaryMemberRef:
+                minLength: 1
                 type: string
               routingMode:
                 enum:
@@ -72,6 +76,7 @@ spec:
               workloadRef:
                 properties:
                   name:
+                    minLength: 1
                     type: string
                   namespace:
                     type: string
@@ -79,8 +84,12 @@ spec:
                 - name
                 type: object
             required:
+            - routingMode
             - workloadRef
             type: object
+            x-kubernetes-validations:
+            - message: primaryMemberRef is required for ActivePassive routing
+              rule: self.routingMode != 'ActivePassive' || has(self.primaryMemberRef)
           status:
             properties:
               activeMemberRef:

@@ -6,6 +6,7 @@ const GroupName = "runtime.polykube.dev"
 
 type LocalObjectReference struct {
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 }
 
@@ -16,47 +17,59 @@ type NamespacedObjectReference struct {
 }
 
 type EnvVar struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name  string `json:"name"`
 	Value string `json:"value,omitempty"`
 }
 
+// +kubebuilder:validation:XValidation:rule="has(self.configMapRef) || has(self.secretRef)",message="at least one of configMapRef or secretRef is required"
 type EnvFromSource struct {
 	ConfigMapRef *LocalObjectReference `json:"configMapRef,omitempty"`
 	SecretRef    *LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 type ContainerPort struct {
+	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
-	ContainerPort int32  `json:"containerPort"`
-	Protocol      string `json:"protocol,omitempty"`
+	ContainerPort int32 `json:"containerPort"`
+	// +kubebuilder:validation:Enum=TCP;UDP;SCTP
+	Protocol string `json:"protocol,omitempty"`
 }
 
 type WorkloadTargetPolicy struct {
 	MemberSelector *metav1.LabelSelector `json:"memberSelector,omitempty"`
-	Members        []string              `json:"members,omitempty"`
-	Strategy       string                `json:"strategy,omitempty"`
+	// +kubebuilder:validation:items:MinLength=1
+	Members []string `json:"members,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	Strategy string `json:"strategy,omitempty"`
 }
 
 type RolloutReference struct {
+	// +kubebuilder:validation:MinLength=1
 	APIGroup string `json:"apiGroup,omitempty"`
-	Kind     string `json:"kind,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	Kind string `json:"kind,omitempty"`
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 }
 
 type WorkloadSpec struct {
-	FederationRef    NamespacedObjectReference `json:"federationRef"`
-	Image            string                    `json:"image"`
-	ImagePullSecrets []LocalObjectReference    `json:"imagePullSecrets,omitempty"`
-	Ports            []ContainerPort           `json:"ports,omitempty"`
-	Env              []EnvVar                  `json:"env,omitempty"`
-	EnvFrom          []EnvFromSource           `json:"envFrom,omitempty"`
-	TargetPolicy     *WorkloadTargetPolicy     `json:"targetPolicy,omitempty"`
-	RolloutRef       *RolloutReference         `json:"rolloutRef,omitempty"`
+	FederationRef NamespacedObjectReference `json:"federationRef"`
+	// +kubebuilder:validation:MinLength=1
+	Image            string                 `json:"image"`
+	ImagePullSecrets []LocalObjectReference `json:"imagePullSecrets,omitempty"`
+	Ports            []ContainerPort        `json:"ports,omitempty"`
+	Env              []EnvVar               `json:"env,omitempty"`
+	EnvFrom          []EnvFromSource        `json:"envFrom,omitempty"`
+	TargetPolicy     *WorkloadTargetPolicy  `json:"targetPolicy,omitempty"`
+	RolloutRef       *RolloutReference      `json:"rolloutRef,omitempty"`
 	// +kubebuilder:validation:Minimum=0
-	Replicas           *int32 `json:"replicas,omitempty"`
+	Replicas *int32 `json:"replicas,omitempty"`
+	// +kubebuilder:validation:MinLength=1
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
@@ -73,6 +86,7 @@ const (
 
 type WorkloadTargetStatus struct {
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	ClusterMemberRef string `json:"clusterMemberRef"`
 	// +kubebuilder:validation:Required
 	State              WorkloadTargetState `json:"state"`

@@ -6,6 +6,7 @@ const GroupName = "routing.polykube.dev"
 
 type NamespacedObjectReference struct {
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,omitempty"`
 }
@@ -20,9 +21,11 @@ const (
 
 type GatewayReference struct {
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,omitempty"`
-	Section   string `json:"section,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	Section string `json:"section,omitempty"`
 }
 
 type FailoverPolicy struct {
@@ -30,13 +33,17 @@ type FailoverPolicy struct {
 	HealthThreshold string `json:"healthThreshold,omitempty"`
 }
 
+// +kubebuilder:validation:XValidation:rule="self.routingMode != 'ActivePassive' || has(self.primaryMemberRef)",message="primaryMemberRef is required for ActivePassive routing"
 type ServiceEndpointSpec struct {
-	WorkloadRef      NamespacedObjectReference `json:"workloadRef"`
-	Hostnames        []string                  `json:"hostnames,omitempty"`
-	RoutingMode      RoutingMode               `json:"routingMode,omitempty"`
-	PrimaryMemberRef string                    `json:"primaryMemberRef,omitempty"`
-	FailoverPolicy   *FailoverPolicy           `json:"failoverPolicy,omitempty"`
-	GatewayRef       *GatewayReference         `json:"gatewayRef,omitempty"`
+	WorkloadRef NamespacedObjectReference `json:"workloadRef"`
+	// +kubebuilder:validation:items:MinLength=1
+	Hostnames []string `json:"hostnames,omitempty"`
+	// +kubebuilder:validation:Required
+	RoutingMode RoutingMode `json:"routingMode,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	PrimaryMemberRef string            `json:"primaryMemberRef,omitempty"`
+	FailoverPolicy   *FailoverPolicy   `json:"failoverPolicy,omitempty"`
+	GatewayRef       *GatewayReference `json:"gatewayRef,omitempty"`
 }
 
 type ServiceEndpointStatus struct {

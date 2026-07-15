@@ -6,6 +6,7 @@ const GroupName = "data.polykube.dev"
 
 type NamespacedObjectReference struct {
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,omitempty"`
 }
@@ -29,11 +30,13 @@ const (
 )
 
 type DatastoreBindingSpec struct {
-	WorkloadRef     NamespacedObjectReference `json:"workloadRef"`
-	Engine          string                    `json:"engine"`
-	ConnectionRef   NamespacedObjectReference `json:"connectionRef"`
-	ReplicationMode DatastoreReplicationMode  `json:"replicationMode,omitempty"`
-	ConflictPolicy  DatastoreConflictPolicy   `json:"conflictPolicy,omitempty"`
+	WorkloadRef NamespacedObjectReference `json:"workloadRef"`
+	// +kubebuilder:validation:Enum=yugabytedb;postgres_compatible;postgres
+	Engine        string                    `json:"engine"`
+	ConnectionRef NamespacedObjectReference `json:"connectionRef"`
+	// +kubebuilder:validation:Required
+	ReplicationMode DatastoreReplicationMode `json:"replicationMode,omitempty"`
+	ConflictPolicy  DatastoreConflictPolicy  `json:"conflictPolicy,omitempty"`
 }
 
 type DatastoreBindingStatus struct {

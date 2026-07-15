@@ -49,6 +49,7 @@ spec:
               connectionRef:
                 properties:
                   name:
+                    minLength: 1
                     type: string
                   namespace:
                     type: string
@@ -56,6 +57,10 @@ spec:
                 - name
                 type: object
               engine:
+                enum:
+                - yugabytedb
+                - postgres_compatible
+                - postgres
                 type: string
               replicationMode:
                 enum:
@@ -66,6 +71,7 @@ spec:
               workloadRef:
                 properties:
                   name:
+                    minLength: 1
                     type: string
                   namespace:
                     type: string
@@ -75,6 +81,7 @@ spec:
             required:
             - connectionRef
             - engine
+            - replicationMode
             - workloadRef
             type: object
           status:

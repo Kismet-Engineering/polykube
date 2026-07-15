@@ -5,13 +5,24 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 const GroupName = "infrastructure.polykube.dev"
 
 type ClusterMemberSpec struct {
-	Provider    string            `json:"provider,omitempty"`
-	Region      string            `json:"region,omitempty"`
-	Zone        string            `json:"zone,omitempty"`
-	Environment string            `json:"environment,omitempty"`
-	ClusterName string            `json:"clusterName,omitempty"`
-	APIEndpoint string            `json:"apiEndpoint,omitempty"`
-	PodCIDR     string            `json:"podCIDR,omitempty"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Provider string `json:"provider,omitempty"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Region string `json:"region,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	Zone string `json:"zone,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	Environment string `json:"environment,omitempty"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	ClusterName string `json:"clusterName,omitempty"`
+	// +kubebuilder:validation:Format=uri
+	APIEndpoint string `json:"apiEndpoint,omitempty"`
+	// +kubebuilder:validation:Format=cidr
+	PodCIDR string `json:"podCIDR,omitempty"`
+	// +kubebuilder:validation:Format=cidr
 	ServiceCIDR string            `json:"serviceCIDR,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 }
@@ -53,15 +64,18 @@ const (
 
 type FederationMemberReference struct {
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 }
 
 type FederationTargetPolicy struct {
 	MemberSelector *metav1.LabelSelector `json:"memberSelector,omitempty"`
-	Members        []string              `json:"members,omitempty"`
+	// +kubebuilder:validation:items:MinLength=1
+	Members []string `json:"members,omitempty"`
 }
 
 type FederationNetworkingSpec struct {
+	// +kubebuilder:validation:MinLength=1
 	Substrate string            `json:"substrate,omitempty"`
 	Details   map[string]string `json:"details,omitempty"`
 }
@@ -76,6 +90,7 @@ type FederationSpec struct {
 
 type FederationMemberStatus struct {
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 	// +kubebuilder:validation:Required
 	Ready bool `json:"ready"`

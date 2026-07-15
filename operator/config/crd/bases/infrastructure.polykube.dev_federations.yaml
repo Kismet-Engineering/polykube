@@ -93,6 +93,7 @@ spec:
                     x-kubernetes-map-type: atomic
                   members:
                     items:
+                      minLength: 1
                       type: string
                     type: array
                 type: object
@@ -149,6 +150,7 @@ spec:
                 items:
                   properties:
                     name:
+                      minLength: 1
                       type: string
                   required:
                   - name
@@ -161,6 +163,7 @@ spec:
                       type: string
                     type: object
                   substrate:
+                    minLength: 1
                     type: string
                 type: object
               routingMode:
@@ -234,6 +237,7 @@ spec:
                 items:
                   properties:
                     name:
+                      minLength: 1
                       type: string
                     ready:
                       type: boolean

@@ -41,25 +41,37 @@ spec:
           spec:
             properties:
               apiEndpoint:
+                format: uri
                 type: string
               clusterName:
+                minLength: 1
                 type: string
               environment:
+                minLength: 1
                 type: string
               labels:
                 additionalProperties:
                   type: string
                 type: object
               podCIDR:
+                format: cidr
                 type: string
               provider:
+                minLength: 1
                 type: string
               region:
+                minLength: 1
                 type: string
               serviceCIDR:
+                format: cidr
                 type: string
               zone:
+                minLength: 1
                 type: string
+            required:
+            - clusterName
+            - provider
+            - region
             type: object
           status:
             properties:

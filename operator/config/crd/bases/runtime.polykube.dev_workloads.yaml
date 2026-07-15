@@ -44,6 +44,7 @@ spec:
                 items:
                   properties:
                     name:
+                      minLength: 1
                       type: string
                     value:
                       type: string
@@ -57,6 +58,7 @@ spec:
                     configMapRef:
                       properties:
                         name:
+                          minLength: 1
                           type: string
                       required:
                       - name
@@ -64,11 +66,15 @@ spec:
                     secretRef:
                       properties:
                         name:
+                          minLength: 1
                           type: string
                       required:
                       - name
                       type: object
                   type: object
+                  x-kubernetes-validations:
+                  - message: at least one of configMapRef or secretRef is required
+                    rule: has(self.configMapRef) || has(self.secretRef)
                 type: array
               federationRef:
                 properties:
@@ -80,11 +86,13 @@ spec:
                 - name
                 type: object
               image:
+                minLength: 1
                 type: string
               imagePullSecrets:
                 items:
                   properties:
                     name:
+                      minLength: 1
                       type: string
                   required:
                   - name
@@ -99,8 +107,13 @@ spec:
                       minimum: 1
                       type: integer
                     name:
+                      minLength: 1
                       type: string
                     protocol:
+                      enum:
+                      - TCP
+                      - UDP
+                      - SCTP
                       type: string
                   required:
                   - containerPort
@@ -113,15 +126,19 @@ spec:
               rolloutRef:
                 properties:
                   apiGroup:
+                    minLength: 1
                     type: string
                   kind:
+                    minLength: 1
                     type: string
                   name:
+                    minLength: 1
                     type: string
                 required:
                 - name
                 type: object
               serviceAccountName:
+                minLength: 1
                 type: string
               targetPolicy:
                 properties:
@@ -176,9 +193,11 @@ spec:
                     x-kubernetes-map-type: atomic
                   members:
                     items:
+                      minLength: 1
                       type: string
                     type: array
                   strategy:
+                    minLength: 1
                     type: string
                 type: object
             required:
@@ -255,6 +274,7 @@ spec:
                 items:
                   properties:
                     clusterMemberRef:
+                      minLength: 1
                       type: string
                     lastTransitionTime:
                       format: date-time
