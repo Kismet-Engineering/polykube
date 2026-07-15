@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	routingapi "github.com/Kismet-Engineering/polykube/operator/api/routing/v1alpha1"
 	runtimeapi "github.com/Kismet-Engineering/polykube/operator/api/runtime/v1alpha1"
@@ -56,7 +57,7 @@ func (r *ServiceEndpointReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 	if svc == nil {
 		logger.Info("service not found, requeuing")
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
 	if err := r.applyAnnotations(ctx, &se, svc); err != nil {

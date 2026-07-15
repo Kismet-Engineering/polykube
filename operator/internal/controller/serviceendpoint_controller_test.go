@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"testing"
+	"time"
 
 	routingapi "github.com/Kismet-Engineering/polykube/operator/api/routing/v1alpha1"
 	runtimeapi "github.com/Kismet-Engineering/polykube/operator/api/runtime/v1alpha1"
@@ -158,6 +159,27 @@ func TestServiceEndpointDeleteRemovesAnnotations(t *testing.T) {
 	}
 	if _, ok := updatedSvc.Annotations[ciliumSharedAnnotation]; ok {
 		t.Fatalf("cilium shared annotation still present after delete")
+	}
+}
+
+func TestServiceEndpointRequeuesWhenServiceMissing(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	se, workload, _ := makeServiceEndpointFixtures(routingapi.RoutingModeActiveActive, "")
+	reconciler := &ServiceEndpointReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(se, workload).WithStatusSubresource(se).Build(),
+		Scheme: scheme,
+	}
+
+	result, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "echo"}})
+	if err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	if result.RequeueAfter < time.Second {
+		t.Fatalf("RequeueAfter = %s, want a positive retry delay", result.RequeueAfter)
 	}
 }
 

@@ -1,6 +1,8 @@
-# End-to-End Validation — v0.1.0-alpha.1
+# End-to-End Validation Gate — v0.1.0-alpha.1
 
-This guide is the clean-machine quickstart gate required before cutting the release tag. Run every step in order on a machine with no prior repository state. Record the output of steps marked **[RECORD]** for inclusion in the release notes.
+This guide is the clean-machine local multicluster release gate required before cutting the release tag. Run it on a machine with no prior repository state. The automated gate records command output under `examples/local-multicluster/state/release-evidence/`; attach or summarize that evidence in the release notes.
+
+The gate validates two local k0s clusters, Cilium ClusterMesh, Cilium global-service routing, operator deployment with per-cluster `--cluster-member-name`, Polykube `ClusterMember`, `Federation`, `Workload`, and `ServiceEndpoint` reconciliation, service annotations, a cross-cluster HTTP probe, and the GitOps operator render.
 
 ---
 
@@ -36,12 +38,6 @@ docker info    # must show a running daemon
 mise run --help
 ```
 
-On macOS with Colima, start the runtime before proceeding:
-
-```bash
-colima start --cpu 4 --memory 8 --disk 60
-```
-
 ---
 
 ## 2. Clone
@@ -66,6 +62,32 @@ repository validation passed
 ```
 
 If it fails, stop and fix the failure before continuing.
+
+---
+
+## 3a. Run The Automated Gate **[RECORD]**
+
+For release validation, prefer the single gate command:
+
+```bash
+mise run local:release:validate -- --clusters alpha,beta --workers 0
+```
+
+If you intentionally need to reuse or replace existing local clusters, pass `--recreate true`:
+
+```bash
+mise run local:release:validate -- --clusters alpha,beta --workers 0 --recreate true
+```
+
+Expected output ends with:
+
+```text
+SUMMARY status=pass evidence=examples/local-multicluster/state/release-evidence/local-release-validation-<timestamp>.log
+```
+
+The evidence log must include command output for repository validation, cluster status, Cilium status, ClusterMesh status, Cilium global-service probe responses from both clusters, operator args with `--cluster-member-name`, Workload status, Service annotations, cross-cluster HTTP probe, and GitOps render.
+
+The remaining sections document the same flow step by step. Use them when diagnosing a failed gate or when manual evidence capture is required.
 
 ---
 
@@ -99,7 +121,7 @@ mise run local:cilium:clustermesh:connect -- --source alpha --destination beta
 mise run local:cilium:verify      -- --source alpha --destination beta
 ```
 
-Expected: `cilium:verify` exits 0 with a connectivity report showing cross-cluster reachability.
+Expected: `cilium:verify` exits 0 with Cilium and ClusterMesh healthy on both clusters. The optional full Cilium connectivity suite is intentionally not part of the release gate because it is broader than this demo and can be noisy on single-node local clusters.
 
 ```bash
 mise run local:cilium:global-service:probe -- --source alpha --destination beta
@@ -233,7 +255,7 @@ kubectl --context polykube-alpha -n default run probe --rm -i --restart=Never \
   --image=curlimages/curl -- curl -s --max-time 10 http://echo:5678
 ```
 
-Expected: an HTTP response body from the echo server (e.g. `hello-world`). The important signal is that the request resolves — responses may come from either cluster's pod.
+Expected: an HTTP response body from the echo server (for example, `hello from polykube`). The important signal is that the ServiceEndpoint-managed global service resolves from a workload pod. Cluster-distinct response evidence is captured earlier by `local:cilium:global-service:probe`, which must show both `RESPONSE|alpha` and `RESPONSE|beta`.
 
 ---
 
@@ -261,9 +283,9 @@ mise run local:cluster:delete -- --clusters alpha,beta
 
 ## Checklist After Validation
 
-Once all steps above pass, update `docs/release/public-alpha-checklist.md` and proceed with:
+Once the automated gate passes and the evidence log is reviewed, update `docs/release/public-alpha-checklist.md` and proceed with:
 
-1. Check `[ ] Quickstart is validated from a clean machine...`
+1. Check `[ ] Local multicluster release validation gate passes from a clean machine...`
 2. Push the release tag: `git tag v0.1.0-alpha.1 && git push origin v0.1.0-alpha.1`
 3. CI publishes `ghcr.io/kismet-engineering/polykube-operator:0.1.0-alpha.1`
 4. Confirm `gitops/components/operator/deployment.yaml` points at the published tag

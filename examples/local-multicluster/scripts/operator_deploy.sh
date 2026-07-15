@@ -26,4 +26,9 @@ for cluster in "${cluster_names[@]}"; do
   context="$(cluster_context_for "${cluster}")"
   printf 'deploying operator to %s (cluster-member-name=%s)\n' "${context}" "${cluster}"
   "${REPO_ROOT}/scripts/operator_deploy.sh" --kubeconfig "${kubeconfig}" --context "${context}" --image "${image}" --cluster-member-name "${cluster}" --wait "${wait}"
+  printf 'restarting operator in %s to pick up image %s\n' "${context}" "${image}"
+  kubectl --kubeconfig "${kubeconfig}" --context "${context}" -n polykube-system rollout restart deployment/polykube-operator
+  if [[ "${wait}" == "true" ]]; then
+    kubectl --kubeconfig "${kubeconfig}" --context "${context}" -n polykube-system rollout status deployment/polykube-operator --timeout=120s
+  fi
 done

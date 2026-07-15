@@ -11,7 +11,7 @@ This checklist must be complete before changing the repository from private to p
 - [x] Third-party dependencies are reviewed through Go module metadata and remain source-only for alpha.
 - [x] Known limitations are documented in `docs/known-limitations.md`.
 - [x] Local repository validation runs with `bash scripts/validate-repo.sh`.
-- [ ] Quickstart is validated from a clean machine or disposable VM before public visibility changes.
+- [ ] Local multicluster release validation gate passes from a clean machine or disposable VM before public visibility changes.
 - [ ] Public release tag and release notes are reviewed.
 - [ ] Repository visibility change is approved by the maintainer.
 
@@ -35,17 +35,19 @@ The validator checks:
 - CRD client dry-run runs when `kubectl` has a configured context
 - GitOps operator component renders with `kubectl kustomize` when `kubectl` is installed
 
-## Clean-Machine Quickstart Gate
+## Clean-Machine Multicluster Release Gate
 
 Use a disposable development machine or VM with no repository-local state.
 
-1. Install prerequisites: Git, Go matching `operator/go.mod`, `kubectl`, Docker-compatible runtime, and `mise`.
+1. Install prerequisites: Git, Docker-compatible runtime, and `mise`.
 2. Clone the repository into a fresh directory.
-3. Run `bash scripts/validate-repo.sh`.
-4. Follow `examples/local-multicluster/README.md` through cluster creation, Cilium install, ClusterMesh connect, verify, and global-service probe.
-5. Render `gitops/components/operator` with `kubectl kustomize gitops/components/operator`.
-6. If `tofu` is installed, run `tofu fmt -check -recursive infra/tofu`.
-7. Record command output in the release notes.
+3. Run `mise install`.
+4. Run `mise run local:release:validate -- --clusters alpha,beta --workers 0`.
+5. Review the evidence log written under `examples/local-multicluster/state/release-evidence/`.
+6. Confirm the evidence includes repository validation, cluster status, Cilium and ClusterMesh status, global-service probe responses from both clusters, operator `--cluster-member-name` args, Workload status, Service annotations, cross-cluster HTTP probe, and GitOps render.
+7. Record the evidence log path and key command output in the release notes.
+
+The manual equivalent and expected outputs are documented in `docs/release/e2e-validation.md`. Use `examples/local-multicluster/README.md` for demo-oriented operation outside the release gate.
 
 ## License And Notices
 

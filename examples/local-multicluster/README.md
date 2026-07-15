@@ -11,6 +11,22 @@ Two k0s Kubernetes clusters running on your local machine, connected by Cilium C
 - `mise` for task execution
 - `colima` on macOS when using Colima as the Docker runtime
 
+## Release Validation Gate
+
+For release validation, run the repeatable two-cluster gate instead of manually stepping through the demo:
+
+```bash
+mise run local:release:validate -- --clusters alpha,beta --workers 0
+```
+
+The gate exits nonzero on failure and records evidence under:
+
+```text
+examples/local-multicluster/state/release-evidence/
+```
+
+It validates cluster creation, Cilium ClusterMesh, global-service routing, operator identity via `--cluster-member-name`, sample Workload reconciliation, ServiceEndpoint annotations, a cross-cluster HTTP probe, and GitOps operator rendering. The release checklist and expected evidence are documented in `docs/release/e2e-validation.md`.
+
 ## Create Clusters
 
 Create two local clusters named `alpha` and `beta`:

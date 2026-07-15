@@ -200,3 +200,21 @@ usage = '''
 flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
 '''
 run = "bash ./examples/local-multicluster/scripts/demo_apply.sh --clusters \"${usage_clusters:-alpha,beta}\""
+
+[tasks."local:release:validate"]
+description = "Run the local two-cluster release validation gate and record evidence"
+usage = '''
+flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha,beta"
+flag "--workers <count>" help="Extra workers per cluster" default="0"
+flag "--image <image>" help="Operator image reference" default="polykube-operator:dev"
+flag "--recreate <bool>" help="Recreate clusters if they already exist" default="false"
+flag "--evidence-dir <path>" help="Directory for evidence logs" default="examples/local-multicluster/state/release-evidence"
+'''
+run = '''
+bash ./examples/local-multicluster/scripts/release_validate.sh \
+  --clusters "${usage_clusters:-alpha,beta}" \
+  --workers "${usage_workers:-0}" \
+  --image "${usage_image:-polykube-operator:dev}" \
+  --recreate "${usage_recreate:-false}" \
+  --evidence-dir "${usage_evidence_dir:-examples/local-multicluster/state/release-evidence}"
+'''

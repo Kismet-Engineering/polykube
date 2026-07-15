@@ -16,7 +16,7 @@ Polykube is an experimental alpha. It is not production-ready.
 ## Local Multicluster Demo
 
 - The local demo validates k0s cluster lifecycle, Cilium/ClusterMesh bootstrap, operator deployment, sample Workload reconciliation, ServiceEndpoint annotations, and global-service routing probes.
-- The local demo is not yet a fully automated clean-machine release gate; evidence capture remains manual.
+- The local release gate is automated for local k0s/Cilium validation, but it still depends on local Docker runtime health and does not replace live cloud validation.
 - The local demo assumes a Docker-compatible runtime and `mise` tasks.
 
 ## Cloud Bootstrap
