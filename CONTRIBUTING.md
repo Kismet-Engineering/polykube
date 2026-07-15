@@ -17,6 +17,8 @@ Polykube is currently in experimental public alpha. Contributions should keep th
 3. Add or update docs when behavior or architecture changes.
 4. Run relevant validation before opening a pull request.
 
+When changing operator API types or kubebuilder markers, run `mise run operator:generate` and commit the regenerated deepcopy code and CRD manifests with the source change. Do not hand-edit generated files under `operator/api/*/v1alpha1/zz_generated.deepcopy.go` or `operator/config/crd/bases/*.yaml`.
+
 ## Project Areas
 
 - `operator`: Kubernetes controllers, CRDs, and runtime reconciliation.

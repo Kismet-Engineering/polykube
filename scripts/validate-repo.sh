@@ -99,6 +99,18 @@ if [[ -f operator/go.mod ]]; then
     exit 1
   fi
 
+  generated_diff_before="$(mktemp)"
+  generated_diff_after="$(mktemp)"
+  trap 'rm -f "${generated_diff_before}" "${generated_diff_after}"' EXIT
+  git diff -- 'operator/api/*/v1alpha1/zz_generated.deepcopy.go' operator/config/crd/bases >"${generated_diff_before}"
+  bash ./scripts/operator_generate.sh
+  git diff -- 'operator/api/*/v1alpha1/zz_generated.deepcopy.go' operator/config/crd/bases >"${generated_diff_after}"
+  if ! cmp -s "${generated_diff_before}" "${generated_diff_after}"; then
+    git diff -- 'operator/api/*/v1alpha1/zz_generated.deepcopy.go' operator/config/crd/bases
+    printf 'generated operator artifacts are stale; run: mise run operator:generate\n' >&2
+    exit 1
+  fi
+
   gofmt_output="$(gofmt -l operator)"
   if [[ -n "${gofmt_output}" ]]; then
     printf 'gofmt required for:\n%s\n' "${gofmt_output}" >&2
