@@ -98,6 +98,18 @@ tofu fmt -check -recursive infra/tofu
 
 Polykube does not replicate secrets across clusters. Any `Secret` referenced in `Workload.spec.imagePullSecrets`, `Workload.spec.envFrom[].secretRef`, or `DatastoreBinding.spec.connectionRef` must exist locally in the same namespace before the operator reconciles it — otherwise the resource enters `Degraded` state and is requeued. See [Secrets model](architecture.md#secrets-model) in the architecture guide for the recommended provisioning approach using External Secrets Operator.
 
+## Diagnose degraded resources
+
+Inspect conditions and local target status before checking controller logs:
+
+```bash
+kubectl -n <namespace> get workload <name> -o yaml
+kubectl -n <namespace> get serviceendpoint <name> -o yaml
+kubectl -n <namespace> get datastorebinding <name> -o yaml
+```
+
+Condition reasons identify missing dependencies, invalid Federation relationships, and same-name runtime objects that Polykube does not own. Correct the referenced object or remove the ownership conflict; the controllers retry recoverable states and clear `Degraded` after reconciliation succeeds. See [Reconciliation failures and recovery](architecture.md#reconciliation-failures-and-recovery) for the reason and recovery matrix.
+
 ## Current Boundary
 
 The local demo validates cluster lifecycle, Cilium ClusterMesh, operator deployment, sample Workload reconciliation, ServiceEndpoint Cilium annotations, and global-service routing. Known limitations are tracked in `docs/known-limitations.md`.

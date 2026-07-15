@@ -10,6 +10,8 @@ Polykube is an experimental alpha. It is not production-ready.
 - `ClusterMember` and `Federation` reconcile identity, membership, and readiness status; they do not configure cloud infrastructure or networking.
 - `ServiceEndpoint` applies Cilium global-service annotations to the generated `Service`; Gateway API fields are accepted but not acted on yet.
 - `DatastoreBinding` injects connection env vars into the generated `Deployment`; it does not provision databases, configure replication, or enforce `conflictPolicy`.
+- Controllers do not adopt same-name `Deployment` or `Service` objects. Ownership conflicts are reported as degraded status and must be resolved by renaming or removing the conflicting object.
+- Missing dependencies and ownership conflicts use periodic retries rather than dedicated watches for every referenced resource.
 - Runtime health is inferred from `DeploymentAvailable`; richer workload probes and failure reasons are follow-up work.
 - CRD manifests and deepcopy code are generated from Go API types; API changes still require alpha-stage review before release.
 

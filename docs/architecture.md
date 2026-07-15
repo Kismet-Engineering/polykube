@@ -107,6 +107,21 @@ Apps that consume multiple datastores should prefer the binding-specific `DATAST
 
 The connection `Secret` should store the URL under `url`; the operator falls back to `DATABASE_URL` for compatibility with existing secret conventions. Binding-managed env vars intentionally take precedence over same-name entries in `Workload.spec.env`. For example, if a `Workload` defines `DATABASE_URL` and a `DatastoreBinding` named `primary` is reconciled, the `DatastoreBinding` value wins because the binding represents the selected local connection secret.
 
+### Reconciliation failures and recovery
+
+Controllers report invalid references and ownership conflicts through Kubernetes conditions instead of silently mutating unrelated objects. `Workload` records the local target as `Degraded`; `ServiceEndpoint` and `DatastoreBinding` set `Degraded=True` and `Ready=False`. Recoverable states are retried, and successful reconciliation removes the stale `Degraded` condition.
+
+| Resource | Reasons | Recovery |
+| --- | --- | --- |
+| `Workload` | `FederationNotFound`, `ClusterMemberNotFound`, `InvalidFederationSelector`, `InvalidTargetPolicy` | Create or correct the referenced infrastructure resource or selector. A cluster intentionally excluded by Federation membership or target policy remains `Pending`, not degraded. |
+| `Workload` | `SecretNotFound`, `ConfigMapNotFound` | Create the named object in the Workload namespace. Reconciliation resumes without changing the Workload manifest. |
+| `Workload` | `DeploymentOwnershipConflict`, `ServiceOwnershipConflict` | Rename or remove the same-name object. Polykube does not adopt runtime objects it does not control. |
+| `ServiceEndpoint` | `WorkloadNotFound`, `ServiceNotFound`, `ServiceOwnershipConflict` | Create or correct the Workload and wait for its controlled Service, or remove the conflicting Service. |
+| `ServiceEndpoint` | `PrimaryMemberNotFound`, `FederationNotFound`, `InvalidFederationSelector`, `PrimaryMemberNotInFederation` | For active/passive routing, ensure the primary `ClusterMember` exists and belongs to the Workload's Federation, either explicitly or through its member selector. |
+| `DatastoreBinding` | `WorkloadNotFound`, `ConnectionSecretNotFound`, `DeploymentNotFound`, `DeploymentOwnershipConflict` | Create or correct the dependency and ensure the Deployment is controlled by the referenced Workload. |
+
+The ownership check is deliberate. The Workload controller owns its generated `Deployment` and optional `Service`. `ServiceEndpoint` may annotate only that controlled Service, and `DatastoreBinding` may inject or remove env vars only on that controlled Deployment. Finalizer cleanup follows the same rule and never modifies an object that is no longer controlled by the referenced Workload.
+
 ## Bootstrap Model
 
 Infrastructure bootstrap tools should produce deterministic, reviewable artifacts before anything is applied to clusters.
