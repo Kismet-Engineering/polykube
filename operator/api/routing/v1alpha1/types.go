@@ -5,10 +5,12 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 const GroupName = "routing.polykube.dev"
 
 type NamespacedObjectReference struct {
+	// +kubebuilder:validation:Required
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=ActivePassive;ActiveActive
 type RoutingMode string
 
 const (
@@ -17,6 +19,7 @@ const (
 )
 
 type GatewayReference struct {
+	// +kubebuilder:validation:Required
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,omitempty"`
 	Section   string `json:"section,omitempty"`
@@ -37,6 +40,8 @@ type ServiceEndpointSpec struct {
 }
 
 type ServiceEndpointStatus struct {
+	// +listType=map
+	// +listMapKey=type
 	Conditions         []metav1.Condition `json:"conditions,omitempty"`
 	ActiveMemberRef    string             `json:"activeMemberRef,omitempty"`
 	ResolvedHostnames  []string           `json:"resolvedHostnames,omitempty"`
@@ -44,14 +49,19 @@ type ServiceEndpointStatus struct {
 	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
 }
 
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced,shortName=pse
 type ServiceEndpoint struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:Required
 	Spec   ServiceEndpointSpec   `json:"spec,omitempty"`
 	Status ServiceEndpointStatus `json:"status,omitempty"`
 }
 
+// +kubebuilder:object:root=true
 type ServiceEndpointList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

@@ -17,25 +17,33 @@ type ClusterMemberSpec struct {
 }
 
 type ClusterMemberStatus struct {
-	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
-	LastObservedAt     *metav1.Time       `json:"lastObservedAt,omitempty"`
-	Conditions         []metav1.Condition `json:"conditions,omitempty"`
+	ObservedGeneration int64        `json:"observedGeneration,omitempty"`
+	LastObservedAt     *metav1.Time `json:"lastObservedAt,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster,shortName=pcm
 type ClusterMember struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:Required
 	Spec   ClusterMemberSpec   `json:"spec,omitempty"`
 	Status ClusterMemberStatus `json:"status,omitempty"`
 }
 
+// +kubebuilder:object:root=true
 type ClusterMemberList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ClusterMember `json:"items"`
 }
 
+// +kubebuilder:validation:Enum=ActivePassive;ActiveActive
 type FederationRoutingMode string
 
 const (
@@ -44,6 +52,7 @@ const (
 )
 
 type FederationMemberReference struct {
+	// +kubebuilder:validation:Required
 	Name string `json:"name"`
 }
 
@@ -66,25 +75,34 @@ type FederationSpec struct {
 }
 
 type FederationMemberStatus struct {
-	Name  string `json:"name"`
-	Ready bool   `json:"ready"`
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+	// +kubebuilder:validation:Required
+	Ready bool `json:"ready"`
 }
 
 type FederationStatus struct {
-	ReadyMembers       int32                    `json:"readyMembers,omitempty"`
-	Members            []FederationMemberStatus `json:"members,omitempty"`
-	Conditions         []metav1.Condition       `json:"conditions,omitempty"`
-	ObservedGeneration int64                    `json:"observedGeneration,omitempty"`
+	ReadyMembers int32                    `json:"readyMembers,omitempty"`
+	Members      []FederationMemberStatus `json:"members,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	Conditions         []metav1.Condition `json:"conditions,omitempty"`
+	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
 }
 
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster,shortName=pfed
 type Federation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:Required
 	Spec   FederationSpec   `json:"spec,omitempty"`
 	Status FederationStatus `json:"status,omitempty"`
 }
 
+// +kubebuilder:object:root=true
 type FederationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

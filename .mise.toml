@@ -108,6 +108,10 @@ run = "bash ./scripts/validate-repo.sh"
 description = "Run operator unit tests"
 run = "cd operator && go test ./..."
 
+[tasks."operator:generate"]
+description = "Generate operator deepcopy code and CRD manifests"
+run = "bash ./scripts/operator_generate.sh"
+
 [tasks."operator:build"]
 description = "Build the operator binary into bin/"
 run = "mkdir -p bin && cd operator && go build -trimpath -o ../bin/polykube-operator ./cmd/polykube-operator"
