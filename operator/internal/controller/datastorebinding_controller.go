@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	dataapi "github.com/Kismet-Engineering/polykube/operator/api/data/v1alpha1"
 	runtimeapi "github.com/Kismet-Engineering/polykube/operator/api/runtime/v1alpha1"
@@ -56,7 +57,7 @@ func (r *DatastoreBindingReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Engine validation.
 	if !acceptedEngine(binding.Spec.Engine) {
-		return ctrl.Result{}, r.setDegradedStatus(ctx, &binding, "UnsupportedEngine",
+		return r.reconcileDegraded(ctx, &binding, "UnsupportedEngine",
 			fmt.Sprintf("Engine %q is not supported. Accepted values: %s.", binding.Spec.Engine, strings.Join(acceptedEngines, ", ")))
 	}
 
@@ -66,7 +67,7 @@ func (r *DatastoreBindingReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 	if workload == nil {
-		return ctrl.Result{}, r.setDegradedStatus(ctx, &binding, "WorkloadNotFound",
+		return r.reconcileDegraded(ctx, &binding, "WorkloadNotFound",
 			fmt.Sprintf("Workload %q not found.", binding.Spec.WorkloadRef.Name))
 	}
 
@@ -76,12 +77,25 @@ func (r *DatastoreBindingReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 	if secret == nil {
-		return ctrl.Result{}, r.setDegradedStatus(ctx, &binding, "ConnectionSecretNotFound",
+		return r.reconcileDegraded(ctx, &binding, "ConnectionSecretNotFound",
 			fmt.Sprintf("Secret %q not found. Ensure the secret exists before the DatastoreBinding is reconciled. See docs/architecture.md for the recommended secrets provisioning model.", connectionSecretName(&binding)))
 	}
 
+	deployment, err := r.resolveDeployment(ctx, workload)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if deployment == nil {
+		return r.reconcileDegraded(ctx, &binding, "DeploymentNotFound",
+			fmt.Sprintf("Deployment %q was not found in namespace %q. Wait for the Workload to create it before reconciling the DatastoreBinding.", workload.Name, workload.Namespace))
+	}
+	if !metav1.IsControlledBy(deployment, workload) {
+		return r.reconcileDegraded(ctx, &binding, "DeploymentOwnershipConflict",
+			fmt.Sprintf("Deployment %q in namespace %q is not controlled by Workload %q. Refusing to inject datastore environment variables.", deployment.Name, deployment.Namespace, workload.Name))
+	}
+
 	// Inject env vars into the Deployment.
-	if err := r.injectEnvVars(ctx, &binding, workload, secret); err != nil {
+	if err := r.injectEnvVars(ctx, &binding, deployment, secret); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -129,13 +143,19 @@ func (r *DatastoreBindingReconciler) resolveConnectionSecret(ctx context.Context
 	return &secret, nil
 }
 
-func (r *DatastoreBindingReconciler) injectEnvVars(ctx context.Context, binding *dataapi.DatastoreBinding, workload *runtimeapi.Workload, secret *corev1.Secret) error {
+func (r *DatastoreBindingReconciler) resolveDeployment(ctx context.Context, workload *runtimeapi.Workload) (*appsv1.Deployment, error) {
 	var deployment appsv1.Deployment
 	if err := r.Get(ctx, client.ObjectKey{Namespace: workload.Namespace, Name: workload.Name}, &deployment); err != nil {
-		return err
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
 	}
+	return &deployment, nil
+}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, &deployment, func() error {
+func (r *DatastoreBindingReconciler) injectEnvVars(ctx context.Context, binding *dataapi.DatastoreBinding, deployment *appsv1.Deployment, secret *corev1.Secret) error {
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, deployment, func() error {
 		nameUpper := strings.ToUpper(strings.ReplaceAll(binding.Name, "-", "_"))
 		secretKey := connectionSecretKey(secret)
 		managedEnvNames := datastoreManagedEnvNames(binding)
@@ -176,7 +196,7 @@ func (r *DatastoreBindingReconciler) injectEnvVars(ctx context.Context, binding 
 				break
 			}
 		}
-		updateDatastoreManagedEnvVars(&deployment, managedEnvNames, nil)
+		updateDatastoreManagedEnvVars(deployment, managedEnvNames, nil)
 		return nil
 	})
 	return err
@@ -192,9 +212,12 @@ func (r *DatastoreBindingReconciler) reconcileBindingDelete(ctx context.Context,
 		return err
 	}
 	if workload != nil {
-		var deployment appsv1.Deployment
-		if err := r.Get(ctx, client.ObjectKey{Namespace: workload.Namespace, Name: workload.Name}, &deployment); err == nil {
-			_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &deployment, func() error {
+		deployment, err := r.resolveDeployment(ctx, workload)
+		if err != nil {
+			return err
+		}
+		if deployment != nil && metav1.IsControlledBy(deployment, workload) {
+			_, err = controllerutil.CreateOrUpdate(ctx, r.Client, deployment, func() error {
 				managedEnvNames := datastoreManagedEnvNames(binding)
 				keysToRemove := namesToBoolMap(managedEnvNames)
 				for i := range deployment.Spec.Template.Spec.Containers {
@@ -206,14 +229,12 @@ func (r *DatastoreBindingReconciler) reconcileBindingDelete(ctx context.Context,
 						break
 					}
 				}
-				updateDatastoreManagedEnvVars(&deployment, nil, managedEnvNames)
+				updateDatastoreManagedEnvVars(deployment, nil, managedEnvNames)
 				return nil
 			})
 			if err != nil {
 				return err
 			}
-		} else if !apierrors.IsNotFound(err) {
-			return err
 		}
 	}
 
@@ -246,6 +267,13 @@ func (r *DatastoreBindingReconciler) setDegradedStatus(ctx context.Context, bind
 	}
 	binding.Status = nextStatus
 	return r.Status().Update(ctx, binding)
+}
+
+func (r *DatastoreBindingReconciler) reconcileDegraded(ctx context.Context, binding *dataapi.DatastoreBinding, reason, message string) (ctrl.Result, error) {
+	if err := r.setDegradedStatus(ctx, binding, reason, message); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 }
 
 func (r *DatastoreBindingReconciler) setReadyStatus(ctx context.Context, binding *dataapi.DatastoreBinding) error {

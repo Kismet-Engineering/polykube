@@ -28,11 +28,21 @@ func makeDatastoreFixtures(bindingName, engine string, replicationMode dataapi.D
 		},
 	}
 	workload := &runtimeapi.Workload{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api", UID: "workload-uid"},
 		Spec:       runtimeapi.WorkloadSpec{Image: "example/api:v1"},
 	}
 	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "demo",
+			Name:      "api",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: runtimeapi.GroupName + "/v1alpha1",
+				Kind:       "Workload",
+				Name:       "api",
+				UID:        "workload-uid",
+				Controller: ptr(true),
+			}},
+		},
 		Spec: appsv1.DeploymentSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
@@ -181,6 +191,65 @@ func TestDatastoreBindingMissingConnectionSecret(t *testing.T) {
 	}
 }
 
+func TestDatastoreBindingMissingDeployment(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	binding, workload, deployment, secret := makeDatastoreFixtures("app-db", "yugabytedb", dataapi.DatastoreReplicationModeNone)
+	reconciler := &DatastoreBindingReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(binding, workload, secret).WithStatusSubresource(binding).Build(),
+		Scheme: scheme,
+	}
+
+	reconcileDatastoreBinding(t, reconciler, "demo", "app-db")
+	assertDatastoreBindingDegraded(t, reconciler, "DeploymentNotFound")
+
+	if err := reconciler.Create(context.Background(), deployment); err != nil {
+		t.Fatalf("Create Deployment error = %v", err)
+	}
+	reconcileDatastoreBinding(t, reconciler, "demo", "app-db")
+	var updated dataapi.DatastoreBinding
+	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "app-db"}, &updated); err != nil {
+		t.Fatalf("Get DatastoreBinding error = %v", err)
+	}
+	if degraded := apimeta.FindStatusCondition(updated.Status.Conditions, "Degraded"); degraded != nil {
+		t.Fatalf("Degraded condition still present after recovery: %#v", degraded)
+	}
+	ready := apimeta.FindStatusCondition(updated.Status.Conditions, "Ready")
+	if ready == nil || ready.Status != metav1.ConditionTrue {
+		t.Fatalf("Ready condition = %#v, want True after recovery", ready)
+	}
+}
+
+func TestDatastoreBindingRefusesUnownedDeployment(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	binding, workload, deployment, secret := makeDatastoreFixtures("app-db", "yugabytedb", dataapi.DatastoreReplicationModeNone)
+	deployment.OwnerReferences = nil
+	deployment.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{{Name: "EXISTING", Value: "keep"}}
+	reconciler := &DatastoreBindingReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(binding, workload, deployment, secret).WithStatusSubresource(binding).Build(),
+		Scheme: scheme,
+	}
+
+	reconcileDatastoreBinding(t, reconciler, "demo", "app-db")
+	assertDatastoreBindingDegraded(t, reconciler, "DeploymentOwnershipConflict")
+
+	var unchanged appsv1.Deployment
+	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &unchanged); err != nil {
+		t.Fatalf("Get Deployment error = %v", err)
+	}
+	env := unchanged.Spec.Template.Spec.Containers[0].Env
+	if len(env) != 1 || env[0].Name != "EXISTING" || env[0].Value != "keep" {
+		t.Fatalf("unowned Deployment env was modified: %v", env)
+	}
+}
+
 func TestDatastoreBindingUnsupportedEngine(t *testing.T) {
 	scheme, err := polykubescheme.New()
 	if err != nil {
@@ -259,6 +328,35 @@ func TestDatastoreBindingDeleteRemovesEnvVars(t *testing.T) {
 	}
 }
 
+func TestDatastoreBindingDeleteDoesNotModifyUnownedDeployment(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	binding, workload, deployment, secret := makeDatastoreFixtures("primary", "yugabytedb", dataapi.DatastoreReplicationModeActiveActive)
+	binding.Finalizers = []string{datastoreBindingFinalizer}
+	now := metav1.Now()
+	binding.DeletionTimestamp = &now
+	deployment.OwnerReferences = nil
+	deployment.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{{Name: "DATABASE_URL", Value: "keep"}}
+	reconciler := &DatastoreBindingReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(binding, workload, deployment, secret).WithStatusSubresource(binding).Build(),
+		Scheme: scheme,
+	}
+
+	if _, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "primary"}}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	var unchanged appsv1.Deployment
+	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &unchanged); err != nil {
+		t.Fatalf("Get Deployment error = %v", err)
+	}
+	if !hasEnvVar(unchanged.Spec.Template.Spec.Containers[0].Env, "DATABASE_URL") {
+		t.Fatalf("unowned Deployment env was modified during delete: %v", unchanged.Spec.Template.Spec.Containers[0].Env)
+	}
+}
+
 func TestDatastoreBindingEnvVarsSurviveWorkloadReconcile(t *testing.T) {
 	scheme, err := polykubescheme.New()
 	if err != nil {
@@ -322,4 +420,20 @@ func hasEnvVar(env []corev1.EnvVar, name string) bool {
 		}
 	}
 	return false
+}
+
+func assertDatastoreBindingDegraded(t *testing.T, reconciler *DatastoreBindingReconciler, reason string) {
+	t.Helper()
+	var updated dataapi.DatastoreBinding
+	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "app-db"}, &updated); err != nil {
+		t.Fatalf("Get DatastoreBinding error = %v", err)
+	}
+	degraded := apimeta.FindStatusCondition(updated.Status.Conditions, "Degraded")
+	if degraded == nil || degraded.Status != metav1.ConditionTrue || degraded.Reason != reason {
+		t.Fatalf("Degraded condition = %#v, want True/%s", degraded, reason)
+	}
+	ready := apimeta.FindStatusCondition(updated.Status.Conditions, "Ready")
+	if ready == nil || ready.Status != metav1.ConditionFalse || ready.Reason != reason {
+		t.Fatalf("Ready condition = %#v, want False/%s", ready, reason)
+	}
 }
