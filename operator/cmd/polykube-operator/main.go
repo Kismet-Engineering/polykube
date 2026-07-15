@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -24,26 +25,20 @@ func main() {
 	var metricsAddr string
 	var probeAddr string
 	var clusterMemberName string
+	var watchNamespace string
 	var enableLeaderElection bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&clusterMemberName, "cluster-member-name", "", "The ClusterMember resource name representing this cluster.")
+	flag.StringVar(&watchNamespace, "watch-namespace", "", "Restrict namespaced resource watches to one namespace. Cluster-scoped resources remain cluster-wide.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	log := ctrl.Log.WithName("setup")
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: metricsAddr,
-		},
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "polykube-operator.polykube.dev",
-	})
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), managerOptions(metricsAddr, probeAddr, watchNamespace, enableLeaderElection))
 	if err != nil {
 		log.Error(err, "unable to start manager")
 		os.Exit(1)
@@ -105,4 +100,24 @@ func main() {
 		log.Error(err, "manager exited")
 		os.Exit(1)
 	}
+}
+
+func managerOptions(metricsAddr, probeAddr, watchNamespace string, enableLeaderElection bool) ctrl.Options {
+	options := ctrl.Options{
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
+		HealthProbeBindAddress: probeAddr,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "polykube-operator.polykube.dev",
+	}
+
+	if watchNamespace != "" {
+		options.Cache.DefaultNamespaces = map[string]cache.Config{
+			watchNamespace: {},
+		}
+	}
+
+	return options
 }
