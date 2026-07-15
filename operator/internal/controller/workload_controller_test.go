@@ -94,9 +94,10 @@ func TestWorkloadReconcileAppliesDeploymentAndService(t *testing.T) {
 
 	pullSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "registry"}}
 	envSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api-secrets"}}
+	configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api-config"}}
 
 	reconciler := &WorkloadReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, pullSecret, envSecret).WithStatusSubresource(workload).Build(),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, pullSecret, envSecret, configMap).WithStatusSubresource(workload).Build(),
 		Scheme: scheme,
 	}
 
@@ -293,14 +294,24 @@ func TestWorkloadReconcileReportsAvailableStatus(t *testing.T) {
 	}
 
 	workload := &runtimeapi.Workload{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api", Generation: 4},
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api", UID: "workload-uid", Generation: 4},
 		Spec: runtimeapi.WorkloadSpec{
 			FederationRef: runtimeapi.NamespacedObjectReference{Name: "primary"},
 			Image:         "example/api:v3",
 		},
 	}
 	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "demo",
+			Name:      "api",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: runtimeapi.GroupName + "/v1alpha1",
+				Kind:       "Workload",
+				Name:       "api",
+				UID:        "workload-uid",
+				Controller: ptr(true),
+			}},
+		},
 		Status: appsv1.DeploymentStatus{Conditions: []appsv1.DeploymentCondition{{
 			Type:   appsv1.DeploymentAvailable,
 			Status: corev1.ConditionTrue,
@@ -405,8 +416,8 @@ func TestWorkloadReconcileNotFederationMemberSetsPending(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Reconcile() error = %v", err)
 	}
-	if !result.IsZero() {
-		t.Fatalf("Reconcile() result = %#v, want zero", result)
+	if result.RequeueAfter == 0 {
+		t.Fatalf("Reconcile() result = %#v, want retry", result)
 	}
 
 	var updated runtimeapi.Workload
@@ -464,6 +475,62 @@ func TestWorkloadReconcileTargetPolicyMembersFilter(t *testing.T) {
 	}
 }
 
+func TestWorkloadReconcileRecoversAfterFederationMembershipChange(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	federation := &infrastructure.Federation{
+		ObjectMeta: metav1.ObjectMeta{Name: "primary"},
+		Spec: infrastructure.FederationSpec{
+			Members: []infrastructure.FederationMemberReference{{Name: "beta"}},
+		},
+	}
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec: runtimeapi.WorkloadSpec{
+			FederationRef: runtimeapi.NamespacedObjectReference{Name: "primary"},
+			Image:         "example/api:v1",
+		},
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, federation).WithStatusSubresource(workload).Build()
+	reconciler := &WorkloadReconciler{Client: fakeClient, Scheme: scheme, ClusterMemberName: "alpha"}
+	request := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}
+
+	result, err := reconciler.Reconcile(context.Background(), request)
+	if err != nil {
+		t.Fatalf("first Reconcile() error = %v", err)
+	}
+	if result.RequeueAfter == 0 {
+		t.Fatal("first Reconcile() should retry pending membership")
+	}
+
+	var updatedFederation infrastructure.Federation
+	if err := fakeClient.Get(context.Background(), types.NamespacedName{Name: "primary"}, &updatedFederation); err != nil {
+		t.Fatalf("Get Federation error = %v", err)
+	}
+	updatedFederation.Spec.Members = append(updatedFederation.Spec.Members, infrastructure.FederationMemberReference{Name: "alpha"})
+	if err := fakeClient.Update(context.Background(), &updatedFederation); err != nil {
+		t.Fatalf("Update Federation error = %v", err)
+	}
+	if _, err := reconciler.Reconcile(context.Background(), request); err != nil {
+		t.Fatalf("second Reconcile() error = %v", err)
+	}
+
+	var updatedWorkload runtimeapi.Workload
+	if err := fakeClient.Get(context.Background(), request.NamespacedName, &updatedWorkload); err != nil {
+		t.Fatalf("Get Workload error = %v", err)
+	}
+	if pending := apimeta.FindStatusCondition(updatedWorkload.Status.Conditions, "Pending"); pending != nil {
+		t.Fatalf("Pending condition still present after recovery: %#v", pending)
+	}
+	var deployment appsv1.Deployment
+	if err := fakeClient.Get(context.Background(), request.NamespacedName, &deployment); err != nil {
+		t.Fatalf("Deployment should exist after membership recovery, got err = %v", err)
+	}
+}
+
 func TestWorkloadReconcileTargetPolicyMemberSelectorFilter(t *testing.T) {
 	scheme, err := polykubescheme.New()
 	if err != nil {
@@ -514,6 +581,70 @@ func TestWorkloadReconcileTargetPolicyMemberSelectorFilter(t *testing.T) {
 	if len(updated.Status.Targets) != 1 || updated.Status.Targets[0].State != runtimeapi.WorkloadTargetStatePending {
 		t.Fatalf("Target state = %v, want Pending (excluded by targetPolicy.memberSelector)", updated.Status.Targets)
 	}
+}
+
+func TestWorkloadReconcileDegradedOnMissingFederation(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec: runtimeapi.WorkloadSpec{
+			FederationRef: runtimeapi.NamespacedObjectReference{Name: "missing"},
+			Image:         "example/api:v1",
+		},
+	}
+	reconciler := &WorkloadReconciler{
+		Client:            fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload).WithStatusSubresource(workload).Build(),
+		Scheme:            scheme,
+		ClusterMemberName: "alpha",
+	}
+
+	result, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}})
+	if err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	if result.RequeueAfter == 0 {
+		t.Fatal("Reconcile() should requeue while Federation is missing")
+	}
+
+	assertWorkloadDegraded(t, reconciler, "FederationNotFound")
+}
+
+func TestWorkloadReconcileDegradedOnInvalidTargetPolicy(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	federation := &infrastructure.Federation{
+		ObjectMeta: metav1.ObjectMeta{Name: "primary"},
+		Spec: infrastructure.FederationSpec{
+			Members: []infrastructure.FederationMemberReference{{Name: "alpha"}},
+		},
+	}
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec: runtimeapi.WorkloadSpec{
+			FederationRef: runtimeapi.NamespacedObjectReference{Name: "primary"},
+			Image:         "example/api:v1",
+			TargetPolicy: &runtimeapi.WorkloadTargetPolicy{MemberSelector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "env", Operator: metav1.LabelSelectorOperator("Invalid")}},
+			}},
+		},
+	}
+	reconciler := &WorkloadReconciler{
+		Client:            fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, federation).WithStatusSubresource(workload).Build(),
+		Scheme:            scheme,
+		ClusterMemberName: "alpha",
+	}
+
+	if _, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	assertWorkloadDegraded(t, reconciler, "InvalidTargetPolicy")
 }
 
 func TestWorkloadReconcileDegradedOnMissingImagePullSecret(t *testing.T) {
@@ -614,6 +745,111 @@ func TestWorkloadReconcileDegradedOnMissingEnvFromSecret(t *testing.T) {
 	}
 }
 
+func TestWorkloadReconcileDegradedOnMissingConfigMap(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec: runtimeapi.WorkloadSpec{
+			Image: "example/api:v1",
+			EnvFrom: []runtimeapi.EnvFromSource{{
+				ConfigMapRef: &runtimeapi.LocalObjectReference{Name: "api-config"},
+			}},
+		},
+	}
+	reconciler := &WorkloadReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload).WithStatusSubresource(workload).Build(),
+		Scheme: scheme,
+	}
+
+	result, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}})
+	if err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	if result.RequeueAfter == 0 {
+		t.Fatal("Reconcile() should requeue while ConfigMap is missing")
+	}
+	assertWorkloadDegraded(t, reconciler, "ConfigMapNotFound")
+
+	var deployment appsv1.Deployment
+	err = reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &deployment)
+	if !apierrors.IsNotFound(err) {
+		t.Fatalf("Deployment should not exist while ConfigMap is missing, got err = %v", err)
+	}
+}
+
+func TestWorkloadReconcileDegradedOnDeploymentOwnershipConflict(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec:       runtimeapi.WorkloadSpec{Image: "example/api:v2"},
+	}
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "existing", Image: "example/other:v1"}},
+		}}},
+	}
+	reconciler := &WorkloadReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, deployment).WithStatusSubresource(workload).Build(),
+		Scheme: scheme,
+	}
+
+	if _, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	assertWorkloadDegraded(t, reconciler, "DeploymentOwnershipConflict")
+
+	var unchanged appsv1.Deployment
+	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &unchanged); err != nil {
+		t.Fatalf("Get Deployment error = %v", err)
+	}
+	if got := unchanged.Spec.Template.Spec.Containers[0].Image; got != "example/other:v1" {
+		t.Fatalf("conflicting Deployment image = %q, want unchanged", got)
+	}
+}
+
+func TestWorkloadReconcileDegradedOnServiceOwnershipConflict(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec: runtimeapi.WorkloadSpec{
+			Image: "example/api:v1",
+			Ports: []runtimeapi.ContainerPort{{Name: "http", ContainerPort: 8080}},
+		},
+	}
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec:       corev1.ServiceSpec{Selector: map[string]string{"app": "other"}},
+	}
+	reconciler := &WorkloadReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload, service).WithStatusSubresource(workload).Build(),
+		Scheme: scheme,
+	}
+
+	if _, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	assertWorkloadDegraded(t, reconciler, "ServiceOwnershipConflict")
+
+	var deployment appsv1.Deployment
+	err = reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &deployment)
+	if !apierrors.IsNotFound(err) {
+		t.Fatalf("Deployment should not be created before Service conflict is resolved, got err = %v", err)
+	}
+}
+
 func TestWorkloadReconcileRecoverFromMissingSecret(t *testing.T) {
 	scheme, err := polykubescheme.New()
 	if err != nil {
@@ -667,6 +903,64 @@ func TestWorkloadReconcileRecoverFromMissingSecret(t *testing.T) {
 	var deployment appsv1.Deployment
 	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &deployment); err != nil {
 		t.Fatalf("Deployment should exist after recovery, got err = %v", err)
+	}
+}
+
+func TestWorkloadReconcileRecoverFromMissingConfigMap(t *testing.T) {
+	scheme, err := polykubescheme.New()
+	if err != nil {
+		t.Fatalf("scheme.New() error = %v", err)
+	}
+
+	workload := &runtimeapi.Workload{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api"},
+		Spec: runtimeapi.WorkloadSpec{
+			Image: "example/api:v1",
+			EnvFrom: []runtimeapi.EnvFromSource{{
+				ConfigMapRef: &runtimeapi.LocalObjectReference{Name: "api-config"},
+			}},
+		},
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(workload).WithStatusSubresource(workload).Build()
+	reconciler := &WorkloadReconciler{Client: fakeClient, Scheme: scheme}
+	request := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "demo", Name: "api"}}
+
+	if _, err := reconciler.Reconcile(context.Background(), request); err != nil {
+		t.Fatalf("first Reconcile() error = %v", err)
+	}
+	configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "demo", Name: "api-config"}}
+	if err := fakeClient.Create(context.Background(), configMap); err != nil {
+		t.Fatalf("Create ConfigMap error = %v", err)
+	}
+	if _, err := reconciler.Reconcile(context.Background(), request); err != nil {
+		t.Fatalf("second Reconcile() error = %v", err)
+	}
+
+	var updated runtimeapi.Workload
+	if err := fakeClient.Get(context.Background(), request.NamespacedName, &updated); err != nil {
+		t.Fatalf("Get Workload error = %v", err)
+	}
+	if degraded := apimeta.FindStatusCondition(updated.Status.Conditions, "Degraded"); degraded != nil {
+		t.Fatalf("Degraded condition still present after recovery: %#v", degraded)
+	}
+	var deployment appsv1.Deployment
+	if err := fakeClient.Get(context.Background(), request.NamespacedName, &deployment); err != nil {
+		t.Fatalf("Deployment should exist after recovery, got err = %v", err)
+	}
+}
+
+func assertWorkloadDegraded(t *testing.T, reconciler *WorkloadReconciler, reason string) {
+	t.Helper()
+	var updated runtimeapi.Workload
+	if err := reconciler.Get(context.Background(), types.NamespacedName{Namespace: "demo", Name: "api"}, &updated); err != nil {
+		t.Fatalf("Get Workload error = %v", err)
+	}
+	if len(updated.Status.Targets) != 1 || updated.Status.Targets[0].State != runtimeapi.WorkloadTargetStateDegraded {
+		t.Fatalf("Target state = %v, want Degraded", updated.Status.Targets)
+	}
+	degraded := apimeta.FindStatusCondition(updated.Status.Conditions, "Degraded")
+	if degraded == nil || degraded.Status != metav1.ConditionTrue || degraded.Reason != reason {
+		t.Fatalf("Degraded condition = %#v, want True/%s", degraded, reason)
 	}
 }
 

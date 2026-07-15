@@ -30,6 +30,11 @@ type WorkloadReconciler struct {
 	ClusterMemberName string
 }
 
+type workloadDegradedState struct {
+	reason  string
+	message string
+}
+
 // clusterMemberRef returns the ClusterMember name for this operator instance,
 // falling back to "local" when the flag is not set (e.g. in tests or single-cluster mode).
 func (r *WorkloadReconciler) clusterMemberRef() string {
@@ -51,40 +56,45 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if r.ClusterMemberName != "" {
-		member, err := r.isFederationMember(ctx, &workload)
+		member, degraded, err := r.isFederationMember(ctx, &workload)
 		if err != nil {
 			return ctrl.Result{}, err
+		}
+		if degraded != nil {
+			return r.reconcileDegraded(ctx, &workload, degraded)
 		}
 		if !member {
-			if err := r.reconcilePendingStatus(ctx, &workload, "NotAFederationMember",
-				fmt.Sprintf("ClusterMember %q is not a member of Federation %q.", r.ClusterMemberName, workload.Spec.FederationRef.Name)); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, nil
+			return r.reconcilePending(ctx, &workload, "NotAFederationMember",
+				fmt.Sprintf("ClusterMember %q is not a member of Federation %q.", r.ClusterMemberName, workload.Spec.FederationRef.Name))
 		}
 
-		targeted, err := r.isTargetPolicyMatch(ctx, &workload)
+		targeted, degraded, err := r.isTargetPolicyMatch(ctx, &workload)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		if degraded != nil {
+			return r.reconcileDegraded(ctx, &workload, degraded)
+		}
 		if !targeted {
-			if err := r.reconcilePendingStatus(ctx, &workload, "ExcludedByTargetPolicy",
-				fmt.Sprintf("ClusterMember %q is excluded by Workload targetPolicy.", r.ClusterMemberName)); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, nil
+			return r.reconcilePending(ctx, &workload, "ExcludedByTargetPolicy",
+				fmt.Sprintf("ClusterMember %q is excluded by Workload targetPolicy.", r.ClusterMemberName))
 		}
 	}
 
-	missingSecret, err := r.reconcileSecretPreflight(ctx, &workload)
+	degraded, err := r.dependencyPreflight(ctx, &workload)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if missingSecret != "" {
-		if err := r.reconcileDegradedStatus(ctx, &workload, missingSecret); err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	if degraded != nil {
+		return r.reconcileDegraded(ctx, &workload, degraded)
+	}
+
+	degraded, err = r.ownershipPreflight(ctx, &workload)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if degraded != nil {
+		return r.reconcileDegraded(ctx, &workload, degraded)
 	}
 
 	if err := r.reconcileDeployment(ctx, &workload); err != nil {
@@ -101,34 +111,95 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{}, nil
 }
 
-// reconcileSecretPreflight checks that all secrets referenced by the Workload exist in its namespace.
-// Returns the name of the first missing secret, or "" if all are present.
-func (r *WorkloadReconciler) reconcileSecretPreflight(ctx context.Context, workload *runtimeapi.Workload) (string, error) {
+func (r *WorkloadReconciler) reconcileDegraded(ctx context.Context, workload *runtimeapi.Workload, degraded *workloadDegradedState) (ctrl.Result, error) {
+	if err := r.reconcileDegradedStatus(ctx, workload, degraded.reason, degraded.message); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+}
+
+func (r *WorkloadReconciler) reconcilePending(ctx context.Context, workload *runtimeapi.Workload, reason, message string) (ctrl.Result, error) {
+	if err := r.reconcilePendingStatus(ctx, workload, reason, message); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+}
+
+func (r *WorkloadReconciler) dependencyPreflight(ctx context.Context, workload *runtimeapi.Workload) (*workloadDegradedState, error) {
 	for _, ref := range workload.Spec.ImagePullSecrets {
 		var secret corev1.Secret
 		if err := r.Get(ctx, client.ObjectKey{Namespace: workload.Namespace, Name: ref.Name}, &secret); err != nil {
 			if apierrors.IsNotFound(err) {
-				return ref.Name, nil
+				return missingWorkloadSecret(workload, ref.Name), nil
 			}
-			return "", err
+			return nil, err
 		}
 	}
 	for _, source := range workload.Spec.EnvFrom {
-		if source.SecretRef == nil {
-			continue
-		}
-		var secret corev1.Secret
-		if err := r.Get(ctx, client.ObjectKey{Namespace: workload.Namespace, Name: source.SecretRef.Name}, &secret); err != nil {
-			if apierrors.IsNotFound(err) {
-				return source.SecretRef.Name, nil
+		if source.ConfigMapRef != nil {
+			var configMap corev1.ConfigMap
+			if err := r.Get(ctx, client.ObjectKey{Namespace: workload.Namespace, Name: source.ConfigMapRef.Name}, &configMap); err != nil {
+				if apierrors.IsNotFound(err) {
+					return &workloadDegradedState{
+						reason:  "ConfigMapNotFound",
+						message: fmt.Sprintf("ConfigMap %q not found in namespace %q. Create the ConfigMap before reconciling the Workload.", source.ConfigMapRef.Name, workload.Namespace),
+					}, nil
+				}
+				return nil, err
 			}
-			return "", err
+		}
+		if source.SecretRef != nil {
+			var secret corev1.Secret
+			if err := r.Get(ctx, client.ObjectKey{Namespace: workload.Namespace, Name: source.SecretRef.Name}, &secret); err != nil {
+				if apierrors.IsNotFound(err) {
+					return missingWorkloadSecret(workload, source.SecretRef.Name), nil
+				}
+				return nil, err
+			}
 		}
 	}
-	return "", nil
+	return nil, nil
 }
 
-func (r *WorkloadReconciler) reconcileDegradedStatus(ctx context.Context, workload *runtimeapi.Workload, missingSecret string) error {
+func missingWorkloadSecret(workload *runtimeapi.Workload, name string) *workloadDegradedState {
+	return &workloadDegradedState{
+		reason:  "SecretNotFound",
+		message: fmt.Sprintf("Secret %q not found in namespace %q. Ensure the Secret exists before reconciling the Workload. See docs/architecture.md for the recommended secrets provisioning model.", name, workload.Namespace),
+	}
+}
+
+func (r *WorkloadReconciler) ownershipPreflight(ctx context.Context, workload *runtimeapi.Workload) (*workloadDegradedState, error) {
+	var deployment appsv1.Deployment
+	if err := r.Get(ctx, client.ObjectKeyFromObject(workload), &deployment); err == nil {
+		if !metav1.IsControlledBy(&deployment, workload) {
+			return workloadOwnershipConflict("Deployment", workload), nil
+		}
+	} else if !apierrors.IsNotFound(err) {
+		return nil, err
+	}
+
+	if len(workload.Spec.Ports) == 0 {
+		return nil, nil
+	}
+	var service corev1.Service
+	if err := r.Get(ctx, client.ObjectKeyFromObject(workload), &service); err == nil {
+		if !metav1.IsControlledBy(&service, workload) {
+			return workloadOwnershipConflict("Service", workload), nil
+		}
+	} else if !apierrors.IsNotFound(err) {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func workloadOwnershipConflict(kind string, workload *runtimeapi.Workload) *workloadDegradedState {
+	return &workloadDegradedState{
+		reason:  kind + "OwnershipConflict",
+		message: fmt.Sprintf("%s %q already exists in namespace %q and is not controlled by Workload %q. Rename or remove the conflicting object before reconciling the Workload.", kind, workload.Name, workload.Namespace, workload.Name),
+	}
+}
+
+func (r *WorkloadReconciler) reconcileDegradedStatus(ctx context.Context, workload *runtimeapi.Workload, reason, message string) error {
 	nextStatus := workload.Status
 	nextStatus.ObservedGeneration = workload.Generation
 
@@ -143,15 +214,18 @@ func (r *WorkloadReconciler) reconcileDegradedStatus(ctx context.Context, worklo
 		ClusterMemberRef:   r.clusterMemberRef(),
 		State:              runtimeapi.WorkloadTargetStateDegraded,
 		LastTransitionTime: &now,
-		Message:            fmt.Sprintf("Secret %q not found in namespace %q.", missingSecret, workload.Namespace),
+		Message:            message,
 	}}
 
+	apimeta.RemoveStatusCondition(&nextStatus.Conditions, "Pending")
+	apimeta.RemoveStatusCondition(&nextStatus.Conditions, "RuntimeObjectsApplied")
+	apimeta.RemoveStatusCondition(&nextStatus.Conditions, "Available")
 	apimeta.SetStatusCondition(&nextStatus.Conditions, metav1.Condition{
 		Type:               "Degraded",
 		Status:             metav1.ConditionTrue,
 		ObservedGeneration: workload.Generation,
-		Reason:             "SecretNotFound",
-		Message:            fmt.Sprintf("Secret %q not found in namespace %q. Ensure the secret exists before the Workload is reconciled. See docs/architecture.md for the recommended secrets provisioning model.", missingSecret, workload.Namespace),
+		Reason:             reason,
+		Message:            message,
 	})
 
 	if apiequality.Semantic.DeepEqual(workload.Status, nextStatus) {
@@ -161,23 +235,26 @@ func (r *WorkloadReconciler) reconcileDegradedStatus(ctx context.Context, worklo
 	return r.Status().Update(ctx, workload)
 }
 
-func (r *WorkloadReconciler) isFederationMember(ctx context.Context, workload *runtimeapi.Workload) (bool, error) {
+func (r *WorkloadReconciler) isFederationMember(ctx context.Context, workload *runtimeapi.Workload) (bool, *workloadDegradedState, error) {
 	federationName := workload.Spec.FederationRef.Name
 	if federationName == "" {
-		return true, nil
+		return true, nil, nil
 	}
 
 	var federation infrastructure.Federation
 	if err := r.Get(ctx, client.ObjectKey{Name: federationName}, &federation); err != nil {
 		if apierrors.IsNotFound(err) {
-			return false, nil
+			return false, &workloadDegradedState{
+				reason:  "FederationNotFound",
+				message: fmt.Sprintf("Federation %q not found. Create the Federation or update spec.federationRef before reconciling the Workload.", federationName),
+			}, nil
 		}
-		return false, err
+		return false, nil, err
 	}
 
 	for _, ref := range federation.Spec.Members {
 		if ref.Name == r.ClusterMemberName {
-			return true, nil
+			return true, nil, nil
 		}
 	}
 
@@ -185,53 +262,65 @@ func (r *WorkloadReconciler) isFederationMember(ctx context.Context, workload *r
 		var member infrastructure.ClusterMember
 		if err := r.Get(ctx, client.ObjectKey{Name: r.ClusterMemberName}, &member); err != nil {
 			if apierrors.IsNotFound(err) {
-				return false, nil
+				return false, &workloadDegradedState{
+					reason:  "ClusterMemberNotFound",
+					message: fmt.Sprintf("ClusterMember %q required to evaluate Federation %q was not found.", r.ClusterMemberName, federationName),
+				}, nil
 			}
-			return false, err
+			return false, nil, err
 		}
 		selector, err := metav1.LabelSelectorAsSelector(federation.Spec.MemberSelector)
 		if err != nil {
-			return false, err
+			return false, &workloadDegradedState{
+				reason:  "InvalidFederationSelector",
+				message: fmt.Sprintf("Federation %q has an invalid memberSelector: %v.", federationName, err),
+			}, nil
 		}
 		if selector.Matches(labels.Set(member.Labels)) {
-			return true, nil
+			return true, nil, nil
 		}
 	}
 
-	return false, nil
+	return false, nil, nil
 }
 
-func (r *WorkloadReconciler) isTargetPolicyMatch(ctx context.Context, workload *runtimeapi.Workload) (bool, error) {
+func (r *WorkloadReconciler) isTargetPolicyMatch(ctx context.Context, workload *runtimeapi.Workload) (bool, *workloadDegradedState, error) {
 	if workload.Spec.TargetPolicy == nil {
-		return true, nil
+		return true, nil, nil
 	}
 	policy := workload.Spec.TargetPolicy
 
 	if len(policy.Members) > 0 {
 		for _, name := range policy.Members {
 			if name == r.ClusterMemberName {
-				return true, nil
+				return true, nil, nil
 			}
 		}
-		return false, nil
+		return false, nil, nil
 	}
 
 	if policy.MemberSelector != nil {
+		selector, err := metav1.LabelSelectorAsSelector(policy.MemberSelector)
+		if err != nil {
+			return false, &workloadDegradedState{
+				reason:  "InvalidTargetPolicy",
+				message: fmt.Sprintf("Workload targetPolicy.memberSelector is invalid: %v.", err),
+			}, nil
+		}
 		var member infrastructure.ClusterMember
 		if err := r.Get(ctx, client.ObjectKey{Name: r.ClusterMemberName}, &member); err != nil {
 			if apierrors.IsNotFound(err) {
-				return false, nil
+				return false, &workloadDegradedState{
+					reason:  "ClusterMemberNotFound",
+					message: fmt.Sprintf("ClusterMember %q required to evaluate Workload targetPolicy was not found.", r.ClusterMemberName),
+				}, nil
 			}
-			return false, err
+			return false, nil, err
 		}
-		selector, err := metav1.LabelSelectorAsSelector(policy.MemberSelector)
-		if err != nil {
-			return false, err
-		}
-		return selector.Matches(labels.Set(member.Labels)), nil
+		return selector.Matches(labels.Set(member.Labels)), nil, nil
 	}
 
-	return true, nil
+	return true, nil, nil
 }
 
 func (r *WorkloadReconciler) reconcilePendingStatus(ctx context.Context, workload *runtimeapi.Workload, reason, message string) error {
@@ -252,6 +341,9 @@ func (r *WorkloadReconciler) reconcilePendingStatus(ctx context.Context, workloa
 		Message:            message,
 	}}
 
+	apimeta.RemoveStatusCondition(&nextStatus.Conditions, "Degraded")
+	apimeta.RemoveStatusCondition(&nextStatus.Conditions, "RuntimeObjectsApplied")
+	apimeta.RemoveStatusCondition(&nextStatus.Conditions, "Available")
 	apimeta.SetStatusCondition(&nextStatus.Conditions, metav1.Condition{
 		Type:               "Pending",
 		Status:             metav1.ConditionTrue,
