@@ -3,11 +3,8 @@ kind: Kustomization
 resources:
   - ../../components/operator
   - workload-namespace.yaml
-  - cluster-role.yaml
-  - cluster-role-binding.yaml
   - workload-role.yaml
   - workload-role-binding.yaml
 patches:
-  - path: delete-default-cluster-role.yaml
-  - path: delete-default-cluster-role-binding.yaml
+  - path: cluster-role.yaml
   - path: deployment.yaml
