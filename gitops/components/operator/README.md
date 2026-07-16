@@ -10,9 +10,10 @@ This component installs the Polykube operator runtime objects for GitOps reconci
 
 ## Ownership Boundaries
 
-- This component owns the operator `Namespace`, `ServiceAccount`, `ClusterRole`, `ClusterRoleBinding`, and `Deployment`.
+- This component owns the operator `Namespace`, `ServiceAccount`, leader-election `Role` and `RoleBinding`, runtime `ClusterRole` and `ClusterRoleBinding`, and `Deployment`.
 - It does not own cloud infrastructure, CNI installation, cluster bootstrap, workload CRs, or external rollout controllers.
 - It grants the operator local-cluster permissions only; credentials for remote clusters are intentionally out of scope.
+- The default component watches every namespace and can read referenced `Secret` and `ConfigMap` objects and manage owned `Deployment` and `Service` objects cluster-wide.
 
 ## Usage
 
@@ -23,3 +24,5 @@ kubectl kustomize gitops/components/operator
 Apply through your GitOps controller directly for the default alpha image, or add an image overlay that pins the exact published tag you want to promote. Local demos should not consume the default directly; they use `mise run operator:render -- --image polykube-operator:dev` or `mise run local:operator:deploy -- --image polykube-operator:dev` after building and loading the local image.
 
 Published image tags and local build commands are documented in `docs/release/operator-images.md`.
+
+For a least-privilege installation restricted to one workload namespace, use `gitops/overlays/operator-namespace-scoped`. See `docs/security.md` before choosing a deployment model.

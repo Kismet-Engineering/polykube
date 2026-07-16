@@ -1,7 +1,8 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
-  name: polykube-operator
+  name: polykube-operator-workloads
+  namespace: polykube-workloads
   labels:
     app.kubernetes.io/name: polykube-operator
     app.kubernetes.io/part-of: polykube
@@ -38,22 +39,6 @@ rules:
       - list
       - update
       - watch
-  - apiGroups:
-      - infrastructure.polykube.dev
-    resources:
-      - clustermembers
-      - federations
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - infrastructure.polykube.dev
-    resources:
-      - clustermembers/status
-      - federations/status
-    verbs:
-      - update
   - apiGroups:
       - runtime.polykube.dev
     resources:

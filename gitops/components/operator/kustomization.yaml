@@ -4,6 +4,8 @@ namespace: polykube-system
 resources:
   - namespace.yaml
   - service-account.yaml
+  - leader-election-role.yaml
+  - leader-election-role-binding.yaml
   - cluster-role.yaml
   - cluster-role-binding.yaml
   - deployment.yaml

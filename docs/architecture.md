@@ -95,6 +95,8 @@ Deployment has correct env vars / pull credentials
 
 Other viable approaches: Sealed Secrets (encrypted CRs committed to GitOps), Vault Agent Injector, CSI secret store driver. The mechanism does not matter to polykube — what matters is that the `Secret` object exists in the namespace before or shortly after the `Workload` is applied.
 
+The operator must read Secret contents in its watch scope, and `DatastoreBinding` copies its selected connection URL into a Deployment environment value. The default and namespace-scoped permission models and their trust assumptions are documented in `security.md`.
+
 ### DatastoreBinding env vars
 
 `DatastoreBinding` injects connection env vars into the `Deployment` generated for a `Workload`:

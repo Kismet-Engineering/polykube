@@ -11,6 +11,7 @@ required_files=(
   CONTRIBUTING.md
   CODE_OF_CONDUCT.md
   docs/architecture.md
+  docs/security.md
   docs/roadmap.md
   docs/known-limitations.md
   docs/release/operator-images.md
@@ -22,9 +23,13 @@ required_files=(
   gitops/components/operator/kustomization.yaml
   gitops/components/operator/namespace.yaml
   gitops/components/operator/service-account.yaml
+  gitops/components/operator/leader-election-role.yaml
+  gitops/components/operator/leader-election-role-binding.yaml
   gitops/components/operator/cluster-role.yaml
   gitops/components/operator/cluster-role-binding.yaml
   gitops/components/operator/deployment.yaml
+  gitops/overlays/operator-namespace-scoped/README.md
+  gitops/overlays/operator-namespace-scoped/kustomization.yaml
   infra/tofu/modules/polykube-manifests/README.md
   infra/tofu/modules/polykube-manifests/versions.tf
   infra/tofu/modules/polykube-manifests/variables.tf
@@ -130,6 +135,7 @@ fi
 
 if command -v kubectl >/dev/null 2>&1; then
   kubectl kustomize gitops/components/operator >/dev/null
+  kubectl kustomize gitops/overlays/operator-namespace-scoped >/dev/null
 fi
 
 printf 'repository validation passed\n'

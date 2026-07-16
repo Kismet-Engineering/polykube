@@ -1,0 +1,18 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: polykube-operator-leader-election
+  namespace: polykube-system
+  labels:
+    app.kubernetes.io/name: polykube-operator
+    app.kubernetes.io/part-of: polykube
+    app.kubernetes.io/managed-by: gitops
+rules:
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - update

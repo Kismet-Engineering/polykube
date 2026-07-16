@@ -46,4 +46,7 @@ Polykube is an experimental alpha. It is not production-ready.
 
 - No public supported versions exist yet.
 - No formal vulnerability disclosure SLA exists yet.
+- The default operator component watches all namespaces and can read all Secrets and ConfigMaps and manage owned Deployments and Services cluster-wide. A single-workload-namespace profile is available under `gitops/overlays/operator-namespace-scoped`; see `docs/security.md`.
+- The namespace-scoped profile does not support cross-namespace references or multiple watched workload namespaces. Multiple restricted operator instances in one cluster are not tested.
+- `DatastoreBinding` writes the selected connection URL into a Deployment environment value, so readers of that Deployment can see the URL.
 - Do not use alpha manifests with production credentials or production clusters without independent review.

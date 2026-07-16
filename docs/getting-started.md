@@ -67,6 +67,14 @@ Preview what the GitOps operator component looks like before deploying it:
 kubectl kustomize gitops/components/operator
 ```
 
+This default profile watches all namespaces. If all managed applications can share one namespace, render the least-privilege profile instead:
+
+```bash
+kubectl kustomize gitops/overlays/operator-namespace-scoped
+```
+
+Review `security.md` before installing either profile.
+
 Build the operator image and render the manifests with the local image tag:
 
 ```bash

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: polykube-workloads
+  labels:
+    app.kubernetes.io/part-of: polykube
+    app.kubernetes.io/managed-by: gitops
