@@ -26,8 +26,9 @@ Both profiles grant only these controller operations:
 | `Deployment` | Namespaced | Read, watch, create, update | Manage Workload-owned Deployments and inject datastore environment values |
 | `Service` | Namespaced | Read, watch, create, update, patch, delete | Manage Workload-owned Services and routing annotations |
 | `Lease` | `polykube-system` | Create, read, update | Controller leader election |
+| `Event` | `polykube-system` | Create, patch | Record controller-runtime leader-election events |
 
-The operator does not need permission to create or modify Secrets or ConfigMaps. It does not emit Kubernetes Events, so the manifests do not grant Event write access. It refuses to modify same-name Deployments or Services that are not controlled by the referenced Workload.
+The operator does not need permission to create or modify Secrets or ConfigMaps. Event writes are restricted to the operator namespace; the reconcilers do not emit Events in workload namespaces. The operator refuses to modify same-name Deployments or Services that are not controlled by the referenced Workload.
 
 ## Secret Trust Boundary
 
