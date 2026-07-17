@@ -205,6 +205,20 @@ flag "--clusters <clusters>" help="Comma-separated cluster names" default="alpha
 '''
 run = "bash ./examples/local-multicluster/scripts/demo_apply.sh --clusters \"${usage_clusters:-alpha,beta}\""
 
+[tasks."local:workload:status"]
+description = "Show aggregate Workload status from explicit local cluster contexts"
+usage = '''
+flag "--contexts <contexts>" help="Comma-separated kubeconfig contexts" default="polykube-alpha,polykube-beta"
+flag "--namespace <namespace>" help="Namespace to query; empty means all namespaces" default=""
+flag "--output <format>" help="Output format: table or json" default="table"
+'''
+run = '''
+cd operator && go run ./cmd/polykube-status \
+  --contexts "${usage_contexts:-polykube-alpha,polykube-beta}" \
+  --namespace "${usage_namespace:-}" \
+  --output "${usage_output:-table}"
+'''
+
 [tasks."local:release:validate"]
 description = "Run the local two-cluster release validation gate and record evidence"
 usage = '''

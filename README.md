@@ -13,7 +13,7 @@ Kubernetes-native infrastructure for portable backend workloads across clusters,
 - **GitOps-native.** Desired state lives in Kubernetes manifests committed to a repository and delivered by Flux. No hidden mutations, no configuration drift.
 - **Cross-cloud.** Works across AWS, GCP, and any CNCF-conformant Kubernetes cluster. Provider-specific details are isolated to bootstrap tooling, not baked into the operator.
 - **Opinionated networking.** Built on Cilium ClusterMesh (cross-cluster pod routing) and Netmaker (WireGuard overlay for clusters that don't share a network). These are the mechanism that makes cross-cluster traffic work.
-- **Observable.** Per-cluster workload status is recorded under `Workload.status.targets[]` — queryable like any Kubernetes resource, aggregatable across clusters without a separate control plane.
+- **Observable.** Per-cluster workload status is recorded under `Workload.status.targets[]` and can be queried across explicit kubeconfig contexts with the read-only [`polykube-status`](docs/status-aggregation.md) CLI.
 - **Self-hostable.** No hosted control plane, no SaaS dependency, no required private cloud account.
 
 ## What Polykube is
@@ -26,7 +26,7 @@ Polykube is not a SaaS platform, a cloud provisioning framework, a progressive r
 
 ## Current implementation status
 
-Polykube is an experimental public alpha. The operator currently reconciles all five alpha resources: `ClusterMember`, `Federation`, `Workload`, `ServiceEndpoint`, and `DatastoreBinding`. `Workload` creates local `Deployment` and `Service` resources, `ServiceEndpoint` applies Cilium global-service annotations, and `DatastoreBinding` injects connection env vars from local secrets. The alpha boundary is operational depth, not missing controllers: there is no production traffic manager, no database provisioning, no secret replication, and no cross-cluster status aggregation yet.
+Polykube is an experimental public alpha. The operator currently reconciles all five alpha resources: `ClusterMember`, `Federation`, `Workload`, `ServiceEndpoint`, and `DatastoreBinding`. `Workload` creates local `Deployment` and `Service` resources, `ServiceEndpoint` applies Cilium global-service annotations, and `DatastoreBinding` injects connection env vars from local secrets. The alpha boundary is operational depth, not missing controllers: there is no production traffic manager, no database provisioning, and no secret replication. Multicluster status is available through an on-demand read-only CLI rather than a continuously running aggregation service.
 
 Known limitations are tracked in [`docs/known-limitations.md`](docs/known-limitations.md), which is the authoritative source for current implementation boundaries.
 

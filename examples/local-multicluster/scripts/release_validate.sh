@@ -211,6 +211,20 @@ for cluster in "${cluster_names[@]}"; do
   kubectl_cluster "${cluster}" -n default get svc echo -o yaml
 done
 
+printf '\n## Verify Aggregate Workload Status\n'
+status_contexts="$(cluster_context_for "${source_cluster}"),$(cluster_context_for "${destination_cluster}")"
+aggregate_table="$(cd "${REPO_ROOT}/operator" && go run ./cmd/polykube-status --contexts "${status_contexts}" --namespace default)"
+printf '%s\n' "${aggregate_table}"
+assert_contains "${aggregate_table}" "$(cluster_context_for "${source_cluster}")" "Aggregate table is missing the source context."
+assert_contains "${aggregate_table}" "$(cluster_context_for "${destination_cluster}")" "Aggregate table is missing the destination context."
+assert_contains "${aggregate_table}" "Available" "Aggregate table is missing available target state."
+
+aggregate_json="$(cd "${REPO_ROOT}/operator" && go run ./cmd/polykube-status --contexts "${status_contexts}" --namespace default --output json)"
+printf '%s\n' "${aggregate_json}"
+assert_contains "${aggregate_json}" '"context": "'"$(cluster_context_for "${source_cluster}")"'"' "Aggregate JSON is missing the source context."
+assert_contains "${aggregate_json}" '"clusterMember": "'"${destination_cluster}"'"' "Aggregate JSON is missing the destination member."
+assert_contains "${aggregate_json}" '"targetState": "Available"' "Aggregate JSON is missing available target state."
+
 printf '\n## Verify DatastoreBinding Missing-Secret Recovery\n'
 for cluster in "${cluster_names[@]}"; do
   kubectl_cluster "${cluster}" -n default delete datastorebinding primary --ignore-not-found --wait=true --timeout=120s

@@ -12,6 +12,7 @@ required_files=(
   CODE_OF_CONDUCT.md
   docs/architecture.md
   docs/security.md
+  docs/status-aggregation.md
   docs/roadmap.md
   docs/known-limitations.md
   docs/release/operator-images.md

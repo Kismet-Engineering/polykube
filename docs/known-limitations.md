@@ -6,7 +6,7 @@ Polykube is an experimental alpha. It is not production-ready.
 
 - All five alpha controllers are implemented and registered: `ClusterMember`, `Federation`, `Workload`, `ServiceEndpoint`, and `DatastoreBinding`.
 - The `Workload` controller reconciles local `Deployment` and `Service` objects only.
-- `Workload.status.targets[]` reports local-cluster state; cross-cluster aggregation is not implemented.
+- `Workload.status.targets[]` reports local-cluster state. The read-only `polykube-status` CLI aggregates it on demand from explicitly selected kubeconfig contexts; there is no continuously running status service or persisted aggregate state.
 - `ClusterMember` and `Federation` reconcile identity, membership, and readiness status; they do not configure cloud infrastructure or networking.
 - `ServiceEndpoint` applies Cilium global-service annotations to the generated `Service`; Gateway API fields are accepted but not acted on yet.
 - `DatastoreBinding` injects connection env vars into the generated `Deployment`; it does not provision databases, configure replication, or enforce `conflictPolicy`.

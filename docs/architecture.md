@@ -147,7 +147,7 @@ Cluster provisioning (creating the clusters, installing Cilium, connecting Netma
 
 ## Runtime Model
 
-Each participating cluster runs local reconciliation with only the credentials needed for that cluster. Multicluster rollout state is aggregated from per-cluster target status rather than a central process holding all cluster credentials.
+Each participating cluster runs local reconciliation with only the credentials needed for that cluster. Multicluster rollout state can be read on demand from per-cluster target status with the [`polykube-status`](status-aggregation.md) CLI rather than a central process holding all cluster credentials.
 
 For v0, per-cluster rollout state lives under `Workload.status.targets[]`. A separate deployment target resource can be introduced later if implementation evidence shows the status array is insufficient.
 
@@ -168,4 +168,4 @@ flowchart LR
     Status --> Aggregate[Multicluster status view]
 ```
 
-The operator reads workload intent from the Kubernetes API, selects the targets that apply to this cluster, applies local `Deployment` and `Service` resources, observes their health, and writes per-cluster status back. A separate read path aggregates status across clusters for visibility — no cluster's operator needs to contact another cluster's API server.
+The operator reads workload intent from the Kubernetes API, selects the targets that apply to this cluster, applies local `Deployment` and `Service` resources, observes their health, and writes per-cluster status back. The on-demand CLI is a separate read path that aggregates status across caller-selected contexts for visibility; no cluster's operator contacts another cluster's API server.

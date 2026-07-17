@@ -161,6 +161,20 @@ kubectl --context polykube-beta  -n default get workload echo -o yaml | grep -A5
 
 Both should show `state: Reconciling` (or `Available` once pods are running).
 
+View both local target statuses in one table:
+
+```bash
+mise run local:workload:status
+```
+
+Use the machine-readable form for automation:
+
+```bash
+mise run local:workload:status -- --output json
+```
+
+The task queries only the explicit `polykube-alpha` and `polykube-beta` contexts. See [Multicluster Workload Status](../../docs/status-aggregation.md) for the general CLI, output contract, failure behavior, and credential boundary.
+
 Check that the echo Service received Cilium global service annotations:
 
 ```bash
