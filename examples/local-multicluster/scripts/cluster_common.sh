@@ -40,6 +40,16 @@ check_container_runtime() {
       echo "Colima is installed but not running. Start it with: colima start" >&2
       exit 1
     fi
+
+    local inotify_instances
+    inotify_instances="$(colima ssh -- cat /proc/sys/fs/inotify/max_user_instances 2>/dev/null || true)"
+    if [[ "${inotify_instances}" =~ ^[0-9]+$ && "${inotify_instances}" -lt 512 ]]; then
+      echo "Colima fs.inotify.max_user_instances=${inotify_instances}; Polykube local clusters require at least 512." >&2
+      echo "Raise it for the current VM with:" >&2
+      echo "  colima ssh -- sudo sysctl -w fs.inotify.max_user_instances=512" >&2
+      echo "Persist it with a system provision script in ~/.colima/default/colima.yaml; see examples/local-multicluster/README.md." >&2
+      exit 1
+    fi
   fi
 }
 

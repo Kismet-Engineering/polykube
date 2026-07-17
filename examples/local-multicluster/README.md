@@ -11,6 +11,31 @@ Two k0s Kubernetes clusters running on your local machine, connected by Cilium C
 - `mise` for task execution
 - `colima` on macOS when using Colima as the Docker runtime
 
+### Colima inotify capacity
+
+The local testbed runs Kubernetes components, Cilium, and ClusterMesh in containers that share the Colima VM's inotify-instance quota. Colima's default `fs.inotify.max_user_instances=128` can be exhausted when two Polykube clusters or other local Kubernetes clusters are running. k0s then reports `Failed to create watcher: too many open files` and never registers its node even when the container's `nofile` limit is sufficient.
+
+Set the current VM limit to at least 512:
+
+```bash
+colima ssh -- sudo sysctl -w fs.inotify.max_user_instances=512
+```
+
+To persist the setting across Colima restarts, add this system provision script to `~/.colima/default/colima.yaml`, then restart Colima:
+
+```yaml
+provision:
+  - mode: system
+    script: |
+      sysctl -w fs.inotify.max_user_instances=512
+```
+
+```bash
+colima restart
+```
+
+Cluster creation checks this value before starting k0s and prints the same remediation when it is too low. This is an inotify-instance limit, not an inode or ordinary open-file limit.
+
 ## Release Validation Gate
 
 For release validation, run the repeatable two-cluster gate instead of manually stepping through the demo:
@@ -25,7 +50,7 @@ The gate exits nonzero on failure and records evidence under:
 examples/local-multicluster/state/release-evidence/
 ```
 
-It validates cluster creation, Cilium ClusterMesh, global-service routing, operator identity via `--cluster-member-name`, sample Workload reconciliation, ServiceEndpoint annotations, a cross-cluster HTTP probe, and GitOps operator rendering. The release checklist and expected evidence are documented in `docs/release/e2e-validation.md`.
+It validates cluster creation, Cilium ClusterMesh, global-service routing, operator identity via `--cluster-member-name`, target selection, sample Workload reconciliation, ServiceEndpoint annotations, DatastoreBinding injection and recovery, a cross-cluster HTTP probe, and GitOps operator rendering. The release checklist and expected evidence are documented in `docs/release/e2e-validation.md`.
 
 ## Create Clusters
 

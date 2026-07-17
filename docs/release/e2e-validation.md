@@ -2,7 +2,7 @@
 
 This guide is the clean-machine local multicluster release gate required before cutting the release tag. Run it on a machine with no prior repository state. The automated gate records command output under `examples/local-multicluster/state/release-evidence/`; attach or summarize that evidence in the release notes.
 
-The gate validates two local k0s clusters, Cilium ClusterMesh, Cilium global-service routing, operator deployment with per-cluster `--cluster-member-name`, Polykube `ClusterMember`, `Federation`, `Workload`, and `ServiceEndpoint` reconciliation, service annotations, a cross-cluster HTTP probe, and the GitOps operator render.
+The gate validates two local k0s clusters, Cilium ClusterMesh, Cilium global-service routing, operator deployment with per-cluster `--cluster-member-name`, Polykube `ClusterMember`, `Federation`, `Workload`, `ServiceEndpoint`, and `DatastoreBinding` reconciliation, target-policy exclusion, degraded-to-ready recovery, active/active and active/passive service annotations, a cross-cluster HTTP probe, and the GitOps operator render.
 
 ---
 
@@ -29,6 +29,15 @@ On macOS, start the Docker runtime before proceeding:
 ```bash
 colima start --cpu 4 --memory 8 --disk 60
 ```
+
+The local Kubernetes testbed requires at least 512 inotify instances in the Colima VM, particularly when other local clusters are running. Check and temporarily raise the limit with:
+
+```bash
+colima ssh -- cat /proc/sys/fs/inotify/max_user_instances
+colima ssh -- sudo sysctl -w fs.inotify.max_user_instances=512
+```
+
+For the persistent Colima provision configuration, failure signature, and explanation, see [Colima inotify capacity](../../examples/local-multicluster/README.md#colima-inotify-capacity). Cluster creation fails fast with this workaround when it detects a lower limit.
 
 Verify:
 
@@ -85,9 +94,15 @@ Expected output ends with:
 SUMMARY status=pass evidence=examples/local-multicluster/state/release-evidence/local-release-validation-<timestamp>.log
 ```
 
-The evidence log must include command output for repository validation, cluster status, Cilium status, ClusterMesh status, Cilium global-service probe responses from both clusters, operator args with `--cluster-member-name`, Workload status, Service annotations, cross-cluster HTTP probe, and GitOps render.
+The evidence log must include command output for repository validation, cluster status, Cilium status, ClusterMesh status, Cilium global-service probe responses from both clusters, operator args with `--cluster-member-name`, Workload status, target-policy exclusion, DatastoreBinding recovery and injected env vars, active/active and active/passive Service annotations, cross-cluster HTTP probe, and GitOps render.
+
+On failure, the gate appends relevant custom-resource and runtime-object YAML, pod descriptions, events, and operator logs for both clusters to the evidence log.
 
 The remaining sections document the same flow step by step. Use them when diagnosing a failed gate or when manual evidence capture is required.
+
+### CI coverage
+
+Pull-request and `main` CI runs `bash scripts/e2e.sh` against a credential-free, single-cluster k0s environment. That gate validates active/active ServiceEndpoint annotations, DatastoreBinding env injection, missing-secret recovery, and target-policy exclusion. Active/passive primary/non-primary behavior and cross-cluster networking remain in the local two-cluster release gate because they require Cilium ClusterMesh and two cluster runtimes.
 
 ---
 
@@ -243,6 +258,23 @@ annotations:
   service.cilium.io/global: "true"
   service.cilium.io/shared: "true"
 ```
+
+The automated gate later changes the endpoint to `ActivePassive` with `alpha` (or the first `--clusters` value) as primary. It then requires `service.cilium.io/shared: "true"` on the primary and `service.cilium.io/shared: "false"` on the non-primary cluster while retaining `service.cilium.io/global: "true"` on both.
+
+### Verify DatastoreBinding Recovery **[RECORD]**
+
+The automated gate creates `DatastoreBinding/primary` before its local connection Secret exists. On each cluster it verifies:
+
+- `Degraded: True` with reason `ConnectionSecretNotFound` before the Secret is created.
+- `Ready: True` after the Secret is created.
+- `DATASTORE_PRIMARY_URL` and `DATABASE_URL` reference the `url` key in the local `echo-database` Secret.
+- `DATASTORE_PRIMARY_REPLICATION_MODE` is set to `None`.
+
+The relevant evidence is emitted automatically by `mise run local:release:validate`; no credentials or external datastore are required.
+
+### Verify Target-Policy Exclusion **[RECORD]**
+
+The automated gate applies `Workload/target-policy-check` to both clusters with a target policy that selects only the second cluster. It requires the first cluster to report a `Pending` target and `ExcludedByTargetPolicy` condition without creating a Deployment or Service. It also requires both runtime objects to exist in the selected cluster.
 
 ---
 
