@@ -1,0 +1,18 @@
+# Day-2: pin the echo image to an explicit release tag.
+# Roll back by re-applying ../workload-echo.yaml.
+apiVersion: runtime.polykube.dev/v1alpha1
+kind: Workload
+metadata:
+  name: echo
+  namespace: default
+spec:
+  federationRef:
+    name: local-dev
+  image: hashicorp/http-echo:1.0.0
+  replicas: 1
+  ports:
+    - name: http
+      containerPort: 5678
+  env:
+    - name: TEXT
+      value: "hello from polykube"

@@ -1,0 +1,12 @@
+# Day-2: active/passive routing with beta as the primary member.
+# Roll back to active/active by re-applying ../serviceendpoint-echo.yaml.
+apiVersion: routing.polykube.dev/v1alpha1
+kind: ServiceEndpoint
+metadata:
+  name: echo
+  namespace: default
+spec:
+  workloadRef:
+    name: echo
+  routingMode: ActivePassive
+  primaryMemberRef: beta
