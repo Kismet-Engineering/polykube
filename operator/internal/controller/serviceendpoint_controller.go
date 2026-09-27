@@ -242,6 +242,8 @@ func (r *ServiceEndpointReconciler) reconcileStatus(ctx context.Context, se *rou
 		Message:            "Cilium annotations applied to the Service.",
 	})
 
+	setFieldsNotEnforcedCondition(&nextStatus.Conditions, se.Generation, serviceEndpointFieldsNotEnforced(&se.Spec))
+
 	if apiequality.Semantic.DeepEqual(se.Status, nextStatus) {
 		return nil
 	}
@@ -270,6 +272,8 @@ func (r *ServiceEndpointReconciler) reconcileDegraded(ctx context.Context, se *r
 		Reason:             reason,
 		Message:            message,
 	})
+
+	setFieldsNotEnforcedCondition(&nextStatus.Conditions, se.Generation, serviceEndpointFieldsNotEnforced(&se.Spec))
 
 	if !apiequality.Semantic.DeepEqual(se.Status, nextStatus) {
 		se.Status = nextStatus

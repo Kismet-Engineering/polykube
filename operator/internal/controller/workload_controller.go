@@ -228,6 +228,8 @@ func (r *WorkloadReconciler) reconcileDegradedStatus(ctx context.Context, worklo
 		Message:            message,
 	})
 
+	setFieldsNotEnforcedCondition(&nextStatus.Conditions, workload.Generation, workloadFieldsNotEnforced(&workload.Spec))
+
 	if apiequality.Semantic.DeepEqual(workload.Status, nextStatus) {
 		return nil
 	}
@@ -352,6 +354,8 @@ func (r *WorkloadReconciler) reconcilePendingStatus(ctx context.Context, workloa
 		Message:            message,
 	})
 
+	setFieldsNotEnforcedCondition(&nextStatus.Conditions, workload.Generation, workloadFieldsNotEnforced(&workload.Spec))
+
 	if apiequality.Semantic.DeepEqual(workload.Status, nextStatus) {
 		return nil
 	}
@@ -455,6 +459,8 @@ func (r *WorkloadReconciler) reconcileStatus(ctx context.Context, workload *runt
 		Message:            "Deployment and Service desired state applied to the local cluster.",
 	})
 	apimeta.SetStatusCondition(&nextStatus.Conditions, availabilityCondition(workload, &deployment))
+
+	setFieldsNotEnforcedCondition(&nextStatus.Conditions, workload.Generation, workloadFieldsNotEnforced(&workload.Spec))
 
 	if apiequality.Semantic.DeepEqual(workload.Status, nextStatus) {
 		return nil
