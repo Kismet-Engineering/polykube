@@ -64,6 +64,7 @@ Follow these steps in order. Each links to the command and expected outcome in t
 
 ## Day-2 operations
 
+- [Day-2 walkthrough](examples/local-multicluster/day-2.md) changes the running demo: image updates, target changes, missing-dependency recovery, active/passive primary switches, and rollback.
 - [Diagnose degraded resources](docs/getting-started.md#diagnose-degraded-resources) through conditions and target status.
 - [Reconciliation failures and recovery](docs/architecture.md#reconciliation-failures-and-recovery) lists condition reasons and how to recover from each.
 - [API field support](docs/api-field-support.md) lists which spec fields are reconciled, metadata-only, or accepted for future integration.
