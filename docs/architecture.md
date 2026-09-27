@@ -115,7 +115,7 @@ Controllers report invalid references and ownership conflicts through Kubernetes
 
 | Resource | Reasons | Recovery |
 | --- | --- | --- |
-| `Workload` | `FederationNotFound`, `ClusterMemberNotFound`, `InvalidFederationSelector`, `InvalidTargetPolicy` | Create or correct the referenced infrastructure resource or selector. A cluster intentionally excluded by Federation membership or target policy remains `Pending`, not degraded. |
+| `Workload` | `FederationNotFound`, `ClusterMemberNotFound`, `InvalidFederationSelector`, `InvalidTargetPolicy` | Create or correct the referenced infrastructure resource or selector. A cluster intentionally excluded by Federation membership or target policy remains `Pending`, not degraded; runtime objects created before the exclusion are retained ([#46](https://github.com/Kismet-Engineering/polykube/issues/46)). |
 | `Workload` | `SecretNotFound`, `ConfigMapNotFound` | Create the named object in the Workload namespace. Reconciliation resumes without changing the Workload manifest. |
 | `Workload` | `DeploymentOwnershipConflict`, `ServiceOwnershipConflict` | Rename or remove the same-name object. Polykube does not adopt runtime objects it does not control. |
 | `ServiceEndpoint` | `WorkloadNotFound`, `ServiceNotFound`, `ServiceOwnershipConflict` | Create or correct the Workload and wait for its controlled Service, or remove the conflicting Service. |

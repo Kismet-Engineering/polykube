@@ -11,6 +11,7 @@ Polykube is an experimental public alpha. It is not production-ready.
 - `ServiceEndpoint` applies Cilium global-service annotations to the generated `Service`; `gatewayRef` and `failoverPolicy` are accepted but not acted on yet.
 - Some spec fields are metadata-only or accepted for future integration. [`api-field-support.md`](api-field-support.md) classifies every field. Controllers report set-but-unenforced fields with the informational `FieldsNotEnforced` condition. Implementation is tracked in [#45](https://github.com/Kismet-Engineering/polykube/issues/45).
 - `DatastoreBinding` injects connection env vars into the generated `Deployment`; it does not provision databases, configure replication, or enforce `conflictPolicy`.
+- When a member is excluded from a Workload after it was already running there (target policy, Federation membership, or member label change), the target reports `Pending`, but the previously created `Deployment` and `Service` are retained and keep running. Remove them manually if needed. The cleanup decision is tracked in [#46](https://github.com/Kismet-Engineering/polykube/issues/46).
 - Controllers do not adopt same-name `Deployment` or `Service` objects. Ownership conflicts are reported as degraded status and must be resolved by renaming or removing the conflicting object.
 - Missing dependencies and ownership conflicts use periodic retries rather than dedicated watches for every referenced resource.
 - Runtime health is inferred from `DeploymentAvailable`; richer workload probes and failure reasons are follow-up work.
