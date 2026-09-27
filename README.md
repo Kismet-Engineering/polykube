@@ -66,6 +66,7 @@ Follow these steps in order. Each links to the command and expected outcome in t
 
 - [Diagnose degraded resources](docs/getting-started.md#diagnose-degraded-resources) through conditions and target status.
 - [Reconciliation failures and recovery](docs/architecture.md#reconciliation-failures-and-recovery) lists condition reasons and how to recover from each.
+- [API field support](docs/api-field-support.md) lists which spec fields are reconciled, metadata-only, or accepted for future integration.
 - [Multicluster workload status](docs/status-aggregation.md) queries `Workload` status across explicit kubeconfig contexts.
 - [Secrets model](docs/architecture.md#secrets-model) covers provisioning secrets in each member cluster.
 - [Operator security model](docs/security.md) covers the default and namespace-scoped deployment profiles and their permissions.

@@ -24,6 +24,8 @@ Progressive rollout mechanics are not part of the core v0 API. Polykube reconcil
 
 ## Resource Model
 
+The fields below record the v0 design intent. Current operator behavior for each field (reconciled, metadata-only, or future integration) is tracked in [`../api-field-support.md`](../api-field-support.md).
+
 ### ClusterMember
 
 `ClusterMember` describes one participating Kubernetes cluster.

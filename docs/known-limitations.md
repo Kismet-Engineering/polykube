@@ -8,7 +8,8 @@ Polykube is an experimental public alpha. It is not production-ready.
 - The `Workload` controller reconciles local `Deployment` and `Service` objects only.
 - `Workload.status.targets[]` reports local-cluster state. The read-only `polykube-status` CLI aggregates it on demand from explicitly selected kubeconfig contexts; there is no continuously running status service or persisted aggregate state.
 - `ClusterMember` and `Federation` reconcile identity, membership, and readiness status; they do not configure cloud infrastructure or networking.
-- `ServiceEndpoint` applies Cilium global-service annotations to the generated `Service`; Gateway API fields are accepted but not acted on yet.
+- `ServiceEndpoint` applies Cilium global-service annotations to the generated `Service`; `gatewayRef` and `failoverPolicy` are accepted but not acted on yet.
+- Some spec fields are metadata-only or accepted for future integration. [`api-field-support.md`](api-field-support.md) classifies every field. Controllers report set-but-unenforced fields with the informational `FieldsNotEnforced` condition. Implementation is tracked in [#45](https://github.com/Kismet-Engineering/polykube/issues/45).
 - `DatastoreBinding` injects connection env vars into the generated `Deployment`; it does not provision databases, configure replication, or enforce `conflictPolicy`.
 - Controllers do not adopt same-name `Deployment` or `Service` objects. Ownership conflicts are reported as degraded status and must be resolved by renaming or removing the conflicting object.
 - Missing dependencies and ownership conflicts use periodic retries rather than dedicated watches for every referenced resource.
