@@ -1,6 +1,6 @@
 # Known Limitations
 
-Polykube is an experimental alpha. It is not production-ready.
+Polykube is an experimental public alpha. It is not production-ready.
 
 ## Operator
 
