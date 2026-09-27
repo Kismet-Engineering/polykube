@@ -41,6 +41,9 @@ spec:
           spec:
             properties:
               conflictPolicy:
+                description: |-
+                  ConflictPolicy is accepted for future integration and not acted on by the
+                  v1alpha1 operator.
                 enum:
                 - Reject
                 - LastWriteWins
@@ -63,6 +66,9 @@ spec:
                 - postgres
                 type: string
               replicationMode:
+                description: |-
+                  ReplicationMode is exposed to the workload as DATASTORE_<NAME>_REPLICATION_MODE.
+                  The v1alpha1 operator does not configure datastore replication.
                 enum:
                 - None
                 - ActivePassive

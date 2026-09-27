@@ -81,6 +81,8 @@ spec:
                   name:
                     type: string
                   namespace:
+                    description: Namespace is ignored for federationRef because Federation
+                      is cluster-scoped.
                     type: string
                 required:
                 - name
@@ -124,6 +126,9 @@ spec:
                 minimum: 0
                 type: integer
               rolloutRef:
+                description: |-
+                  RolloutRef is accepted for future integration with an external rollout
+                  controller and not acted on by the v1alpha1 operator.
                 properties:
                   apiGroup:
                     minLength: 1
@@ -197,6 +202,9 @@ spec:
                       type: string
                     type: array
                   strategy:
+                    description: |-
+                      Strategy is accepted for future integration and not acted on by the
+                      v1alpha1 operator.
                     minLength: 1
                     type: string
                 type: object
