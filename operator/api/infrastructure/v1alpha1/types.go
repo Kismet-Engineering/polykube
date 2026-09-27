@@ -11,20 +11,30 @@ type ClusterMemberSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Region string `json:"region,omitempty"`
+	// Zone is informational metadata. The v1alpha1 operator does not act on it.
 	// +kubebuilder:validation:MinLength=1
 	Zone string `json:"zone,omitempty"`
+	// Environment is informational metadata. The v1alpha1 operator does not act on it.
 	// +kubebuilder:validation:MinLength=1
 	Environment string `json:"environment,omitempty"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	ClusterName string `json:"clusterName,omitempty"`
+	// APIEndpoint is informational metadata. The operator never connects to it;
+	// each operator reconciles only its local cluster.
 	// +kubebuilder:validation:Format=uri
 	APIEndpoint string `json:"apiEndpoint,omitempty"`
+	// PodCIDR is informational metadata. The v1alpha1 operator does not act on it
+	// or configure networking.
 	// +kubebuilder:validation:Format=cidr
 	PodCIDR string `json:"podCIDR,omitempty"`
+	// ServiceCIDR is informational metadata. The v1alpha1 operator does not act on it
+	// or configure networking.
 	// +kubebuilder:validation:Format=cidr
-	ServiceCIDR string            `json:"serviceCIDR,omitempty"`
-	Labels      map[string]string `json:"labels,omitempty"`
+	ServiceCIDR string `json:"serviceCIDR,omitempty"`
+	// Labels is informational metadata. Federation and Workload member selectors
+	// match metadata.labels, not this field.
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type ClusterMemberStatus struct {
@@ -81,11 +91,18 @@ type FederationNetworkingSpec struct {
 }
 
 type FederationSpec struct {
-	MemberSelector      *metav1.LabelSelector       `json:"memberSelector,omitempty"`
-	Members             []FederationMemberReference `json:"members,omitempty"`
-	RoutingMode         FederationRoutingMode       `json:"routingMode,omitempty"`
-	DefaultTargetPolicy *FederationTargetPolicy     `json:"defaultTargetPolicy,omitempty"`
-	Networking          *FederationNetworkingSpec   `json:"networking,omitempty"`
+	MemberSelector *metav1.LabelSelector       `json:"memberSelector,omitempty"`
+	Members        []FederationMemberReference `json:"members,omitempty"`
+	// RoutingMode is informational metadata describing the federation's intended
+	// routing posture. The v1alpha1 operator does not act on it; routing is
+	// reconciled from ServiceEndpoint.spec.routingMode.
+	RoutingMode FederationRoutingMode `json:"routingMode,omitempty"`
+	// DefaultTargetPolicy is accepted for future integration and not acted on by
+	// the v1alpha1 operator. Workloads are placed by their own spec.targetPolicy.
+	DefaultTargetPolicy *FederationTargetPolicy `json:"defaultTargetPolicy,omitempty"`
+	// Networking is informational metadata describing the networking substrate.
+	// The v1alpha1 operator does not act on it or configure networking.
+	Networking *FederationNetworkingSpec `json:"networking,omitempty"`
 }
 
 type FederationMemberStatus struct {

@@ -123,6 +123,46 @@ func TestGeneratedCRDSchemaConstraints(t *testing.T) {
 	}
 }
 
+func TestGeneratedCRDDescribesUnenforcedFields(t *testing.T) {
+	const (
+		metadataOnly = "informational metadata"
+		future       = "accepted for future"
+	)
+	tests := []struct {
+		crd  string
+		path string
+		want string
+	}{
+		{"infrastructure.polykube.dev_clustermembers.yaml", "spec.zone", metadataOnly},
+		{"infrastructure.polykube.dev_clustermembers.yaml", "spec.environment", metadataOnly},
+		{"infrastructure.polykube.dev_clustermembers.yaml", "spec.apiEndpoint", metadataOnly},
+		{"infrastructure.polykube.dev_clustermembers.yaml", "spec.podCIDR", metadataOnly},
+		{"infrastructure.polykube.dev_clustermembers.yaml", "spec.serviceCIDR", metadataOnly},
+		{"infrastructure.polykube.dev_clustermembers.yaml", "spec.labels", metadataOnly},
+		{"infrastructure.polykube.dev_federations.yaml", "spec.routingMode", metadataOnly},
+		{"infrastructure.polykube.dev_federations.yaml", "spec.networking", metadataOnly},
+		{"infrastructure.polykube.dev_federations.yaml", "spec.defaultTargetPolicy", future},
+		{"runtime.polykube.dev_workloads.yaml", "spec.federationRef.namespace", "ignored"},
+		{"runtime.polykube.dev_workloads.yaml", "spec.targetPolicy.strategy", future},
+		{"runtime.polykube.dev_workloads.yaml", "spec.rolloutRef", future},
+		{"routing.polykube.dev_serviceendpoints.yaml", "spec.hostnames", metadataOnly},
+		{"routing.polykube.dev_serviceendpoints.yaml", "spec.failoverPolicy", future},
+		{"routing.polykube.dev_serviceendpoints.yaml", "spec.gatewayRef", future},
+		{"data.polykube.dev_datastorebindings.yaml", "spec.replicationMode", "does not configure datastore replication"},
+		{"data.polykube.dev_datastorebindings.yaml", "spec.conflictPolicy", future},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.crd+"/"+tt.path, func(t *testing.T) {
+			field := schemaAt(t, loadSchema(t, tt.crd), strings.Split(tt.path, ".")...)
+			description, _ := field["description"].(string)
+			if !strings.Contains(strings.ToLower(description), tt.want) {
+				t.Errorf("%s description = %q, want it to contain %q", tt.path, description, tt.want)
+			}
+		})
+	}
+}
+
 func loadSchema(t *testing.T, name string) map[string]any {
 	t.Helper()
 

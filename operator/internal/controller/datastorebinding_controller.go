@@ -262,6 +262,8 @@ func (r *DatastoreBindingReconciler) setDegradedStatus(ctx context.Context, bind
 		Message:            message,
 	})
 
+	setFieldsNotEnforcedCondition(&nextStatus.Conditions, binding.Generation, datastoreBindingFieldsNotEnforced(&binding.Spec))
+
 	if apiequality.Semantic.DeepEqual(binding.Status, nextStatus) {
 		return nil
 	}
@@ -289,6 +291,8 @@ func (r *DatastoreBindingReconciler) setReadyStatus(ctx context.Context, binding
 		Reason:             "Reconciled",
 		Message:            "Connection secret resolved and env vars injected.",
 	})
+
+	setFieldsNotEnforcedCondition(&nextStatus.Conditions, binding.Generation, datastoreBindingFieldsNotEnforced(&binding.Spec))
 
 	if apiequality.Semantic.DeepEqual(binding.Status, nextStatus) {
 		return nil

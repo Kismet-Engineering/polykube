@@ -36,14 +36,20 @@ type FailoverPolicy struct {
 // +kubebuilder:validation:XValidation:rule="self.routingMode != 'ActivePassive' || has(self.primaryMemberRef)",message="primaryMemberRef is required for ActivePassive routing"
 type ServiceEndpointSpec struct {
 	WorkloadRef NamespacedObjectReference `json:"workloadRef"`
+	// Hostnames is informational metadata copied to status.resolvedHostnames.
+	// The v1alpha1 operator does not configure DNS, certificates, or ingress for it.
 	// +kubebuilder:validation:items:MinLength=1
 	Hostnames []string `json:"hostnames,omitempty"`
 	// +kubebuilder:validation:Required
 	RoutingMode RoutingMode `json:"routingMode,omitempty"`
 	// +kubebuilder:validation:MinLength=1
-	PrimaryMemberRef string            `json:"primaryMemberRef,omitempty"`
-	FailoverPolicy   *FailoverPolicy   `json:"failoverPolicy,omitempty"`
-	GatewayRef       *GatewayReference `json:"gatewayRef,omitempty"`
+	PrimaryMemberRef string `json:"primaryMemberRef,omitempty"`
+	// FailoverPolicy is accepted for future integration and not acted on by the
+	// v1alpha1 operator. Active/passive routing follows primaryMemberRef only.
+	FailoverPolicy *FailoverPolicy `json:"failoverPolicy,omitempty"`
+	// GatewayRef is accepted for future Gateway API integration and not acted on
+	// by the v1alpha1 operator.
+	GatewayRef *GatewayReference `json:"gatewayRef,omitempty"`
 }
 
 type ServiceEndpointStatus struct {

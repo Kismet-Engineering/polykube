@@ -41,6 +41,9 @@ spec:
           spec:
             properties:
               defaultTargetPolicy:
+                description: |-
+                  DefaultTargetPolicy is accepted for future integration and not acted on by
+                  the v1alpha1 operator. Workloads are placed by their own spec.targetPolicy.
                 properties:
                   memberSelector:
                     description: |-
@@ -157,6 +160,9 @@ spec:
                   type: object
                 type: array
               networking:
+                description: |-
+                  Networking is informational metadata describing the networking substrate.
+                  The v1alpha1 operator does not act on it or configure networking.
                 properties:
                   details:
                     additionalProperties:
@@ -167,6 +173,10 @@ spec:
                     type: string
                 type: object
               routingMode:
+                description: |-
+                  RoutingMode is informational metadata describing the federation's intended
+                  routing posture. The v1alpha1 operator does not act on it; routing is
+                  reconciled from ServiceEndpoint.spec.routingMode.
                 enum:
                 - ActivePassive
                 - ActiveActive

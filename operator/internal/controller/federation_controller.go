@@ -159,6 +159,8 @@ func (r *FederationReconciler) reconcileStatus(ctx context.Context, federation *
 		})
 	}
 
+	setFieldsNotEnforcedCondition(&nextStatus.Conditions, federation.Generation, federationFieldsNotEnforced(&federation.Spec))
+
 	if apiequality.Semantic.DeepEqual(federation.Status, nextStatus) {
 		return nil
 	}

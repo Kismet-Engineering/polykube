@@ -46,7 +46,7 @@ Initial API groups use the `polykube.dev` root:
 - `routing.polykube.dev`: service endpoints and routing policy.
 - `data.polykube.dev`: datastore bindings and replication intent.
 
-The v0 CRD model is defined in `docs/decisions/0003-crd-model-v0.md`.
+The v0 CRD model is defined in `docs/decisions/0003-crd-model-v0.md`. Which spec fields the operator reconciles, treats as metadata, or accepts for future integration is listed in [`api-field-support.md`](api-field-support.md).
 
 ```mermaid
 flowchart TB
@@ -121,6 +121,8 @@ Controllers report invalid references and ownership conflicts through Kubernetes
 | `ServiceEndpoint` | `WorkloadNotFound`, `ServiceNotFound`, `ServiceOwnershipConflict` | Create or correct the Workload and wait for its controlled Service, or remove the conflicting Service. |
 | `ServiceEndpoint` | `PrimaryMemberNotFound`, `FederationNotFound`, `InvalidFederationSelector`, `PrimaryMemberNotInFederation` | For active/passive routing, ensure the primary `ClusterMember` exists and belongs to the Workload's Federation, either explicitly or through its member selector. |
 | `DatastoreBinding` | `WorkloadNotFound`, `ConnectionSecretNotFound`, `DeploymentNotFound`, `DeploymentOwnershipConflict` | Create or correct the dependency and ensure the Deployment is controlled by the referenced Workload. |
+
+Separately from failures, controllers set an informational `FieldsNotEnforced` condition (reason `AcceptedNotEnforced`) when a user sets a field that is accepted for future integration but not acted on, such as `ServiceEndpoint.spec.gatewayRef`. It does not affect readiness and needs no recovery; see [`api-field-support.md`](api-field-support.md).
 
 The ownership check is deliberate. The Workload controller owns its generated `Deployment` and optional `Service`. `ServiceEndpoint` may annotate only that controlled Service, and `DatastoreBinding` may inject or remove env vars only on that controlled Deployment. Finalizer cleanup follows the same rule and never modifies an object that is no longer controlled by the referenced Workload.
 

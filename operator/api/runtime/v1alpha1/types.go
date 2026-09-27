@@ -12,7 +12,8 @@ type LocalObjectReference struct {
 
 type NamespacedObjectReference struct {
 	// +kubebuilder:validation:Required
-	Name      string `json:"name"`
+	Name string `json:"name"`
+	// Namespace is ignored for federationRef because Federation is cluster-scoped.
 	Namespace string `json:"namespace,omitempty"`
 }
 
@@ -43,6 +44,8 @@ type WorkloadTargetPolicy struct {
 	MemberSelector *metav1.LabelSelector `json:"memberSelector,omitempty"`
 	// +kubebuilder:validation:items:MinLength=1
 	Members []string `json:"members,omitempty"`
+	// Strategy is accepted for future integration and not acted on by the
+	// v1alpha1 operator.
 	// +kubebuilder:validation:MinLength=1
 	Strategy string `json:"strategy,omitempty"`
 }
@@ -66,7 +69,9 @@ type WorkloadSpec struct {
 	Env              []EnvVar               `json:"env,omitempty"`
 	EnvFrom          []EnvFromSource        `json:"envFrom,omitempty"`
 	TargetPolicy     *WorkloadTargetPolicy  `json:"targetPolicy,omitempty"`
-	RolloutRef       *RolloutReference      `json:"rolloutRef,omitempty"`
+	// RolloutRef is accepted for future integration with an external rollout
+	// controller and not acted on by the v1alpha1 operator.
+	RolloutRef *RolloutReference `json:"rolloutRef,omitempty"`
 	// +kubebuilder:validation:Minimum=0
 	Replicas *int32 `json:"replicas,omitempty"`
 	// +kubebuilder:validation:MinLength=1

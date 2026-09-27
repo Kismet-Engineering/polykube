@@ -34,9 +34,13 @@ type DatastoreBindingSpec struct {
 	// +kubebuilder:validation:Enum=yugabytedb;postgres_compatible;postgres
 	Engine        string                    `json:"engine"`
 	ConnectionRef NamespacedObjectReference `json:"connectionRef"`
+	// ReplicationMode is exposed to the workload as DATASTORE_<NAME>_REPLICATION_MODE.
+	// The v1alpha1 operator does not configure datastore replication.
 	// +kubebuilder:validation:Required
 	ReplicationMode DatastoreReplicationMode `json:"replicationMode,omitempty"`
-	ConflictPolicy  DatastoreConflictPolicy  `json:"conflictPolicy,omitempty"`
+	// ConflictPolicy is accepted for future integration and not acted on by the
+	// v1alpha1 operator.
+	ConflictPolicy DatastoreConflictPolicy `json:"conflictPolicy,omitempty"`
 }
 
 type DatastoreBindingStatus struct {

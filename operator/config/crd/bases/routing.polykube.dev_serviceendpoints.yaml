@@ -41,6 +41,9 @@ spec:
           spec:
             properties:
               failoverPolicy:
+                description: |-
+                  FailoverPolicy is accepted for future integration and not acted on by the
+                  v1alpha1 operator. Active/passive routing follows primaryMemberRef only.
                 properties:
                   enabled:
                     type: boolean
@@ -48,6 +51,9 @@ spec:
                     type: string
                 type: object
               gatewayRef:
+                description: |-
+                  GatewayRef is accepted for future Gateway API integration and not acted on
+                  by the v1alpha1 operator.
                 properties:
                   name:
                     minLength: 1
@@ -61,6 +67,9 @@ spec:
                 - name
                 type: object
               hostnames:
+                description: |-
+                  Hostnames is informational metadata copied to status.resolvedHostnames.
+                  The v1alpha1 operator does not configure DNS, certificates, or ingress for it.
                 items:
                   minLength: 1
                   type: string

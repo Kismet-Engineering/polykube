@@ -41,19 +41,30 @@ spec:
           spec:
             properties:
               apiEndpoint:
+                description: |-
+                  APIEndpoint is informational metadata. The operator never connects to it;
+                  each operator reconciles only its local cluster.
                 format: uri
                 type: string
               clusterName:
                 minLength: 1
                 type: string
               environment:
+                description: Environment is informational metadata. The v1alpha1 operator
+                  does not act on it.
                 minLength: 1
                 type: string
               labels:
                 additionalProperties:
                   type: string
+                description: |-
+                  Labels is informational metadata. Federation and Workload member selectors
+                  match metadata.labels, not this field.
                 type: object
               podCIDR:
+                description: |-
+                  PodCIDR is informational metadata. The v1alpha1 operator does not act on it
+                  or configure networking.
                 format: cidr
                 type: string
               provider:
@@ -63,9 +74,14 @@ spec:
                 minLength: 1
                 type: string
               serviceCIDR:
+                description: |-
+                  ServiceCIDR is informational metadata. The v1alpha1 operator does not act on it
+                  or configure networking.
                 format: cidr
                 type: string
               zone:
+                description: Zone is informational metadata. The v1alpha1 operator
+                  does not act on it.
                 minLength: 1
                 type: string
             required:
