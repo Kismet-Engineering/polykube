@@ -201,3 +201,7 @@ kubectl --context polykube-alpha -n default run probe --rm -i --restart=Never \
 - `Workload echo` shows `status.targets[0].state: Available` on each cluster
 - `Service echo` has `service.cilium.io/global: "true"` on both clusters
 - A pod in cluster alpha can reach the echo service and receive a response
+
+## Next: day-2 operations
+
+Continue with the [day-2 walkthrough](day-2.md) to update, retarget, recover, switch the primary for, and roll back the running `echo` Workload.

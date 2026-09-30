@@ -246,4 +246,51 @@ wait_jsonpath_equals "ExcludedByTargetPolicy" '{.status.conditions[?(@.type=="Pe
 assert_resource_absent -n default get deployment excluded
 assert_resource_absent -n default get service excluded
 
+# 12. Day-2 scenarios from examples/local-multicluster/day-2.md.
+DAY2_DIR="${MANIFESTS_DIR}/day-2"
+APP_CONTAINER='{.spec.template.spec.containers[?(@.name=="app")]'
+
+printf '==> validating day-2 manifests against installed CRDs\n'
+kubectl_e2e apply --dry-run=server -f "${DAY2_DIR}"
+
+printf '==> day-2: image change and rollback\n'
+kubectl_e2e apply -f "${DAY2_DIR}/workload-echo-pinned.yaml"
+wait_jsonpath_equals "hashicorp/http-echo:1.0.0" '{.status.activeImage}' -n default get workload echo
+wait_jsonpath_equals "hashicorp/http-echo:1.0.0" "${APP_CONTAINER}.image}" -n default get deployment echo
+kubectl_e2e apply -f "${MANIFESTS_DIR}/workload-echo.yaml"
+wait_jsonpath_equals "hashicorp/http-echo:latest" '{.status.activeImage}' -n default get workload echo
+wait_jsonpath_equals "hashicorp/http-echo:latest" "${APP_CONTAINER}.image}" -n default get deployment echo
+
+printf '==> day-2: missing envFrom secret degrades, then recovers\n'
+kubectl_e2e apply -f "${DAY2_DIR}/workload-echo-envfrom.yaml"
+wait_jsonpath_equals "Degraded" '{.status.targets[0].state}' -n default get workload echo
+wait_jsonpath_equals "SecretNotFound" '{.status.conditions[?(@.type=="Degraded")].reason}' -n default get workload echo
+kubectl_e2e apply -f "${DAY2_DIR}/secret-echo-config.yaml"
+wait_jsonpath_equals "True" '{.status.conditions[?(@.type=="RuntimeObjectsApplied")].status}' -n default get workload echo
+wait_jsonpath_equals "echo-config" "${APP_CONTAINER}.envFrom[0].secretRef.name}" -n default get deployment echo
+kubectl_e2e apply -f "${MANIFESTS_DIR}/workload-echo.yaml"
+
+printf '==> day-2: excluding a running member keeps its runtime objects\n'
+kubectl_e2e apply -f "${DAY2_DIR}/workload-echo-alpha-only.yaml"
+wait_jsonpath_equals "ExcludedByTargetPolicy" '{.status.conditions[?(@.type=="Pending")].reason}' -n default get workload echo
+wait_jsonpath_equals "Pending" '{.status.targets[0].state}' -n default get workload echo
+# Current alpha behavior: the previously created Deployment and Service are retained.
+kubectl_e2e -n default get deployment echo >/dev/null
+kubectl_e2e -n default get service echo >/dev/null
+kubectl_e2e apply -f "${MANIFESTS_DIR}/workload-echo.yaml"
+wait_jsonpath_equals "True" '{.status.conditions[?(@.type=="RuntimeObjectsApplied")].status}' -n default get workload echo
+
+printf '==> day-2: switching the active/passive primary\n'
+kubectl_e2e apply -f "${MANIFESTS_DIR}/clustermember-alpha.yaml"
+kubectl_e2e apply -f "${MANIFESTS_DIR}/clustermember-beta.yaml"
+kubectl_e2e apply -f "${DAY2_DIR}/serviceendpoint-echo-primary-alpha.yaml"
+wait_jsonpath_equals "alpha" '{.status.activeMemberRef}' -n default get serviceendpoint echo
+wait_jsonpath_equals "True" '{.status.conditions[?(@.type=="Ready")].status}' -n default get serviceendpoint echo
+# This cluster (member e2e) is not the primary, so it does not share its endpoints.
+wait_jsonpath_equals "false" '{.metadata.annotations.service\.cilium\.io/shared}' -n default get service echo
+kubectl_e2e apply -f "${DAY2_DIR}/serviceendpoint-echo-primary-beta.yaml"
+wait_jsonpath_equals "beta" '{.status.activeMemberRef}' -n default get serviceendpoint echo
+kubectl_e2e apply -f "${MANIFESTS_DIR}/serviceendpoint-echo.yaml"
+wait_jsonpath_equals "true" '{.metadata.annotations.service\.cilium\.io/shared}' -n default get service echo
+
 printf '==> e2e passed\n'

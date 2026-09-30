@@ -201,7 +201,7 @@ Condition reasons identify missing dependencies, invalid Federation relationship
 
 ## Next: evaluate cloud and bootstrap examples
 
-After the local demo works, evaluate the path to real clusters:
+After the local demo works, try the [day-2 walkthrough](../examples/local-multicluster/day-2.md): update the image, change target members, recover from a missing Secret, switch the active/passive primary, and roll back. Then evaluate the path to real clusters:
 
 - [`examples/aws-gcp/README.md`](../examples/aws-gcp/README.md): reference flow for provisioning and connecting clusters, then generating `ClusterMember` and `Federation` manifests with OpenTofu and delivering them through Flux. If OpenTofu is installed, check the module's formatting with `tofu fmt -check -recursive infra/tofu`.
 - [`networking-caveats.md`](networking-caveats.md): provider CNI caveats and the validation matrix to run before trusting cross-cluster routing.
